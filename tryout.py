@@ -1,18 +1,14 @@
-import pandas as pd
+import asyncio
+import websockets
+import json
 
-# Example DataFrame
-data = {
-    'col1': ['A', 'B', 'C', 'A', 'B'],  # First column with strings
-    'col2': [10, 20, 30, 40, 50],
-    'col3': [100, 200, 300, 400, 500]
-}
-df = pd.DataFrame(data)
+URL = "http://192.168.1.193:8080/"  # Replace with your WebSocket URL
 
-# Step 1: One-hot encode the first column (strings)
-encoded_columns = pd.get_dummies(df['Activity'], prefix='Activity')  # Adds prefix to avoid confusion
+async def live_data():
+    async with websockets.connect(URL) as websocket:
+        while True:
+            data = await websocket.recv()
+            parsed_data = json.loads(data)
+            print(parsed_data)  # Print or process your live data here
 
-# Step 2: Drop the original column and concatenate the encoded columns
-df = pd.concat([encoded_columns, df.drop(columns=['Activity'])], axis=1)
-
-# Step 3: Display the final DataFrame
-print(df)
+asyncio.run(live_data())
