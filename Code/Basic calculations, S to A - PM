@@ -1,0 +1,11 @@
+# Input values (directly in the code)
+distance = .100  # Distance in meters (change this value)
+time = 1       # Time in seconds (change this value)
+
+# Calculations
+speed = distance / time  # Speed = Distance / Time
+acceleration = distance / (time ** 2)  # Acceleration = Distance / Time^2
+
+# Output results
+print(f"The speed is: {speed:.2f} m/s")
+print(f"The acceleration is: {acceleration:.2f} m/s^2")
