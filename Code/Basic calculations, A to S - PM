@@ -1,0 +1,25 @@
+import math
+from sympy import symbols, integrate
+
+# Define variables
+t = symbols('t')  # Time as a symbol
+angle_deg = 10    # Angle in degrees
+
+# Calculate acceleration
+acceleration = 9.81 * math.sin(math.radians(angle_deg))
+
+# Integrate acceleration to get velocity and position
+velocity = integrate(acceleration, t)
+position = integrate(velocity, t)
+
+# Example output after 5 seconds
+time_value = 5
+
+# Results
+v_at_t = velocity.subs(t, time_value)
+s_at_t = position.subs(t, time_value)
+
+# Output
+print(f"Acceleration: {acceleration:.2f} m/s^2")
+print(f"Velocity after {time_value} seconds: {v_at_t:.2f} m/s")
+print(f"Distance after {time_value} seconds: {s_at_t:.2f} m")
