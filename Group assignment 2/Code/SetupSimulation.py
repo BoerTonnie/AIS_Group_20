@@ -8,22 +8,16 @@ import matplotlib.pyplot as plt
 
 # ------------- Variables & constants -------------
 
-simulatedCycleTime_ms = 50
+# simulatedCycleTime_ms = 50
 
-gravity = 9.81
-startingAngle = 0
-startingDistance = 100
+# gravity = 9.81
+# startingAngle = 0
+# startingDistance = 100
 
-ballRadius = 12.5
+# ballRadius = 12.5
 
-rail_length = 250 # length of the rail, accessible to the ball
-sensor_Offset = 40 # distance from sensor to the rail
-
-
-
-ServoAngle = 0 # placeholder for the eventual input value from the model
-
-
+# rail_length = 250 # length of the rail, accessible to the ball
+# sensor_Offset = 40 # distance from sensor to the rail
 
 
 
@@ -32,103 +26,100 @@ ServoAngle = 0 # placeholder for the eventual input value from the model
 
 class simulate:
     def __init__(self, StartingDistance):
-        self.velocity = 0
+        self.deltaSimulationTime = 0.05  # amount of time between each cycle of simulation
         self.speed = 0
         self.distance = StartingDistance
+        self.simulationTime = 0
 
-        self.newCycle()
+        # Correctly initialize the DataFrame
+        data = {
+            'Time': [self.simulationTime],
+            'Angle': [0],
+            'Acceleration': [0],
+            'Velocity': [self.speed],
+            'Distance': [self.distance]
+        }
+
+        self.df = pd.DataFrame(data)
+
+        # Initialize a simulation cycle
+        # `newCycle` requires an argument, so it can't be called here without fixing the input
+        # Commenting out for now
+        # self.newCycle()
+
 
     # Define the acceleration as a function of time, velocity, or position
-    def acceleration(t, v, x, theta):
-        return -9.8 * np.sin((2*theta)/np.pi) + 0.1 * v  #  gravity * sin(angle) + velocity-dependent drag
+    def acceleration(self, v, theta):
+        return -9.81 * np.sin((2*theta)/np.pi) #+ 0.1 * v  #  gravity * sin(angle) + velocity-dependent drag
     
-    def mapAngle(ServoAngle):
+    def mapAngle(self, servoAngle):
         servo_min = 0
         servo_max = 255
 
         angle_min = -10
         angle_max = 10
 
-        return (ServoAngle - servo_min) * (angle_max - angle_min) / (servo_max - servo_min) + angle_min
-        return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+        return (servoAngle - servo_min) * (angle_max - angle_min) / (servo_max - servo_min) + angle_min
+    
+    # Stores all info of the simulation for plotting purposes
+    # Needs to be done after each itteration of the simulation
+    def storeInfo(self, angle, acc):
+        newData = {
+            'Time': self.simulationTime,
+            'Angle': angle,
+            'Acceleration': acc,
+            'Velocity': self.speed,
+            'Distance': self.distance
+        }
+        self.df.loc[len(self.df)] = newData
         
+    def showDataframe(self):
+        print(self.df)
 
-        
-
-    def newCycle():
-        #newDistance = self.distance * 
-        print("New simulation cycle")
-
-        angle = mapAngle(ServoAngle)
-
-        # Define the acceleration as a function of time, velocity, or position
-    def acceleration(t, v, x):
-        return -9.8 + 0.1 * v  # Example: gravity + velocity-dependent drag
-
-    def oops(theta):
+    def plotDataframe(self):
+        # Create subplots
+        num_columns = len(self.df.columns) - 1  # Exclude 'Time' for x-axis
+        fig, axes = plt.subplots(num_columns, 1, figsize=(8, 4 * num_columns), sharex=True)
 
 
-        # Define the acceleration as a function of time, velocity, or position
-        def acceleration(t, v, x, theta):
-            return -9.8 * np.sin((2*theta)/np.pi) + 0.1 * v  # Example: gravity + velocity-dependent drag
+        # Plot each column in a subplot
+        for i, column in enumerate(self.df.columns[1:]):  # Skip 'Time' column
+            axes[i].plot(self.df['Time'], self.df[column], marker='o', label=column)
+            axes[i].set_title(f'{column} vs Time')
+            axes[i].set_ylabel(column)
+            axes[i].grid(True)
+            axes[i].legend()
 
-        # Simulation parameters
-        dt = 0.01  # Time step (seconds)
-        t_end = 20  # End time (seconds)
+        # Add x-axis label to the bottom plot
+        axes[-1].set_xlabel('Time')
 
-        # Initial conditions
-        x = 0.0  # Initial position (meters)
-        v = 20.0  # Initial velocity (meters/second)
-        t = 0.0   # Initial time (seconds)
-
-        # Lists to store the results for plotting
-        time = [t]
-        position = [x]
-        velocity = [v]
-
-        # Simulation loop
-        while t < t_end:
-            a = acceleration(t, v, x, theta)  # Calculate acceleration
-            v = v + a * dt             # Update velocity
-            x = x + v * dt             # Update position
-            t = t + dt                 # Update time
-
-            # Store results
-            time.append(t)
-            position.append(x)
-            velocity.append(v)
-
-        # Plot the results
-        plt.figure(figsize=(10, 5))
-        plt.subplot(2, 1, 1)
-        plt.plot(time, position, label="Position (x)")
-        plt.xlabel("Time (s)")
-        plt.ylabel("Position (m)")
-        plt.legend()
-
-        plt.subplot(2, 1, 2)
-        plt.plot(time, velocity, label="Velocity (v)", color="orange")
-        plt.xlabel("Time (s)")
-        plt.ylabel("Velocity (m/s)")
-        plt.legend()
-
+        # Adjust layout
         plt.tight_layout()
-
-        print (position)
         plt.show()
 
+        
 
+    def newCycle(self, servoAngle):
+        #newDistance = self.distance * 
+        #print("New simulation cycle")
 
+        angle = self.mapAngle(servoAngle)
+        acc = self.acceleration(self.speed, angle)  # calculate acceleration on this cycle
+        self.speed = self.speed + acc * self.deltaSimulationTime # update speed
+        self.distance = self.distance + self.speed * self.deltaSimulationTime # update distance to sensor
+        self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
 
-
+        # Store information for debugging and plotting purposes
+        self.storeInfo(angle, acc)
 
 
 # ------------- main cycle -------------
 
 if __name__ == "__main__":
-    simulation = simulate
+    sim = simulate(10)
     theta = 10
-    simulation.oops(theta)
-
-
-    print(50)
+    simLoops = 1000
+    for i in range(simLoops):
+        sim.newCycle(theta)
+    sim.showDataframe()
+    sim.plotDataframe()
