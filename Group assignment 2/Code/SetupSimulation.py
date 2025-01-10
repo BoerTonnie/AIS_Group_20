@@ -3,23 +3,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import gymnasium as gym
+import random
 from gymnasium.spaces import Box
 
-
-
-
-# ------------- Variables & constants -------------
-
-# simulatedCycleTime_ms = 50
-
-# gravity = 9.81
-# startingAngle = 0
-# startingDistance = 100
-
-# ballRadius = 12.5
-
-# rail_length = 250 # length of the rail, accessible to the ball
-# sensor_Offset = 40 # distance from sensor to the rail
 
 
 
@@ -33,6 +19,10 @@ class simulate(gym.Env):
         self.distance = StartingDistance
         self.simulationTime = 0
 
+        self.maxDistance = 30
+        self.minDistance = 4
+        self.goal_threshold = 0.5
+
         # Correctly initialize the DataFrame
         data = {
             'Time': [self.simulationTime],
@@ -43,13 +33,15 @@ class simulate(gym.Env):
         }
 
         self.df = pd.DataFrame(data)
-        self.action_space = Box(-3.4028234663852886e+38, 3.4028234663852886e+38, (1,), np.float32)
+        self.action_space = Box(-1, 1, (1,), np.float32) # Action space for: Servo_Angle_Low, Servo_Angle_High, Shape(How much servos there are), data type
         # Define the observation space
         self.observation_space = Box(
             low=np.array([0.0, -10, -10]),    # Lower bounds for distance, velocity, and angle
             high=np.array([30, 10, 10]), # Upper bounds for distance, velocity, and angle
             dtype=np.float32
         )
+
+        self.steps_beyond_terminated = None
 
         # Initialize a simulation cycle
         # `newCycle` requires an argument, so it can't be called here without fixing the input
@@ -112,26 +104,77 @@ class simulate(gym.Env):
         #newDistance = self.distance * 
         #print("New simulation cycle")
 
-        angle = self.mapAngle(servoAngle)
-        acc = self.acceleration(self.speed, angle)  # calculate acceleration on this cycle
+        self.angle = self.mapAngle(servoAngle)
+        acc = self.acceleration(self.speed, self.angle)  # calculate acceleration on this cycle
         self.speed = self.speed + acc * self.deltaSimulationTime # update speed
         self.distance = self.distance + self.speed * self.deltaSimulationTime # update distance to sensor
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
 
         # Store information for debugging and plotting purposes
-        self.storeInfo(angle, acc)
+        self.storeInfo(self.angle, acc)
 
 
 
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         # reset super
+        super().reset(seed=seed)
+
         # set the servo angle
+        self.angle = 0
+
         # GENERATE RANDOM TARGET
-        #
+        lowerBound = self.minDistance + self.goal_threshold
+        upperBound = self.maxDistance - self. goal_threshold
+        self.goal = random.uniform(lowerBound, upperBound)
+
+
         # read ball position and vel
+        self.speed = 0 # read actual
+
+        self.distance = random.uniform(lowerBound, upperBound) # read actual 
+
+        # reset terminated condition
+        self.steps_beyond_terminated = None
+
         # return obs
-        pass
+        obs = [self.distance, self.speed, self.angle] # check if extran info is needed in stable baseline 3
+        return np.array(obs, dtype=np.float32) # might require extra info
+
+    def step(self, action):
+        # set the servo angle to action
+        Actual_angle = action # read actual
+
+        # do simuloation stuff but later read from arduino
+        self.newCycle(Actual_angle)
+
+        # calculate termination
+        terminated = bool(
+            self.distance < self.minDistance
+            or self.distance > self.maxDistance
+        )
+
+        # calcualte reward
+        if not terminated:
+            reward = 0.5
+            if self.distance > self.goal + self.goal_threshold and self.distance < self.goal - self.goal_threshold:
+                reward += 0.5
+        elif self.steps_beyond_terminated is None:
+            self.steps_beyond_terminated = 0
+        else:
+            if self.steps_beyond_terminated == 0:
+                print(
+                    "You are calling 'step()' even though this "
+                    "environment has already returned terminated = True. You "
+                    "should always call 'reset()' once you receive 'terminated = "
+                    "True' -- any further steps are undefined behavior."
+                )
+            self.steps_beyond_terminated += 1
+            reward = 0.0
+
+        # get obs
+        obs = self.distance, self.speed, self.angle
+        return np.array(obs, dtype=np.float32), reward, terminated, False, {}
 
     def render(self):
         pass
