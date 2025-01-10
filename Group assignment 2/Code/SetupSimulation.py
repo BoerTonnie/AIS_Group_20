@@ -207,11 +207,6 @@ if __name__ == "__main__":
     # Initialize the environment with a starting distance
     env = simulate(StartingDistance=10)
 
-    print("Debugging storeInfo values:")
-    print("Time:", env.simulationTime)
-    print("Velocity:", env.speed)
-    print("Distance:", env.distance)
-
     # check if the environment adheres to the Gym API
     check_env(env, warn=True)
 
