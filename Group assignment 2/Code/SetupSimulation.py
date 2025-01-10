@@ -57,8 +57,8 @@ class simulate(gym.Env):
         return -9.81 * np.sin((2*theta)/np.pi)
     
     def mapAngle(self, servoAngle):
-        servo_min = 60
-        servo_max = 100
+        servo_min = -1
+        servo_max = 1
 
         angle_min = -10
         angle_max = 10
@@ -68,12 +68,16 @@ class simulate(gym.Env):
     # Stores all info of the simulation for plotting purposes
     # Needs to be done after each itteration of the simulation
     def storeInfo(self, angle, acc):
+        # Extract scalar values if these are numpy arrays
+        speed_scalar = self.speed.item() if isinstance(self.speed, np.ndarray) else self.speed
+        distance_scalar = self.distance.item() if isinstance(self.distance, np.ndarray) else self.distance
+
         newData = {
             'Time': float(self.simulationTime),
             'Angle': float(angle) if isinstance(angle, (int, float)) else float(angle[0]),
             'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
-            'Velocity': float(self.speed),
-            'Distance': float(self.distance)
+            'Velocity': float(speed_scalar),
+            'Distance': float(distance_scalar)
         }
         self.df.loc[len(self.df)] = newData
         
@@ -161,6 +165,7 @@ class simulate(gym.Env):
         )
 
         # calcualte reward
+        # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = 0.5
             if self.distance > self.goal + self.goal_threshold and self.distance < self.goal - self.goal_threshold:
