@@ -4,9 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import gymnasium as gym
 import random
+
 from gymnasium.spaces import Box
 
-
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 
 
@@ -66,11 +69,11 @@ class simulate(gym.Env):
     # Needs to be done after each itteration of the simulation
     def storeInfo(self, angle, acc):
         newData = {
-            'Time': self.simulationTime,
-            'Angle': angle,
-            'Acceleration': acc,
-            'Velocity': self.speed,
-            'Distance': self.distance
+            'Time': float(self.simulationTime),
+            'Angle': float(angle) if isinstance(angle, (int, float)) else float(angle[0]),
+            'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
+            'Velocity': float(self.speed),
+            'Distance': float(self.distance)
         }
         self.df.loc[len(self.df)] = newData
         
@@ -139,7 +142,10 @@ class simulate(gym.Env):
 
         # return obs
         obs = [self.distance, self.speed, self.angle] # check if extran info is needed in stable baseline 3
-        return np.array(obs, dtype=np.float32) # might require extra info
+        return np.array(obs, dtype=np.float32).flatten(), {} # might require extra info
+    
+
+
 
     def step(self, action):
         # set the servo angle to action
@@ -173,8 +179,8 @@ class simulate(gym.Env):
             reward = 0.0
 
         # get obs
-        obs = self.distance, self.speed, self.angle
-        return np.array(obs, dtype=np.float32), reward, terminated, False, {}
+        obs = [self.distance, self.speed, self.angle]
+        return np.array(obs, dtype=np.float32).flatten(), reward, terminated, False, {}
 
     def render(self):
         pass
@@ -190,5 +196,22 @@ if __name__ == "__main__":
     # sim.showDataframe()
     # sim.plotDataframe()
 
-    sim = simulate(10)
-    print (sim.observation_space.sample())
+    # sim = simulate(10)
+    # print (sim.observation_space.sample())
+
+    # base_env = sim.make("FliFlaFloe")
+    # print (base_env.action_space)
+
+
+
+    # Initialize the environment with a starting distance
+    env = simulate(StartingDistance=10)
+
+    print("Debugging storeInfo values:")
+    print("Time:", env.simulationTime)
+    print("Velocity:", env.speed)
+    print("Distance:", env.distance)
+
+    # check if the environment adheres to the Gym API
+    check_env(env, warn=True)
+
