@@ -102,6 +102,7 @@ float readSharpDistanceCm(int pin) {
   int rawValue = analogRead(pin);                  // 0 - 1023
   float voltage = rawValue * (5.0 / 1023.0);       // Convert to voltage
   float distance = 27.728 * pow(voltage, -1.2045);
+  //Serial.print(rawValue);
   if (distance < 0) {
     distance = 0;
   }
