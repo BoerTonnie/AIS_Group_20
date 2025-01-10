@@ -22,7 +22,7 @@ void setup() {
 
   // Servo setup
   myServo.attach(servoPin);   // Attach the servo to pin 9
-  myServo.write(0);           // Optionally, set servo to 0 degrees
+  myServo.write(80);           // Optionally, set servo to 0 degrees
 
   // IMU setup
   if (!IMU.begin()) {
@@ -72,7 +72,7 @@ void loop() {
   // -----------------------------------------------------------------------
   Serial.print("Distance: ");
   Serial.print(distanceCm, 1);
-  Serial.print(" cm | pitch: ");
+  Serial.print(" cm | Pitch: ");
   Serial.print(pitch, 1);
   Serial.println(" deg");
 
@@ -89,13 +89,13 @@ void loop() {
 
   if (stringComplete) {
     int angle = inputString.toInt();      // Convert string to integer
-    angle = constrain(angle, 0, 180);     // Constrain between 0 and 180
+    angle = constrain(angle, 24, 130);     // Constrain between 0 and 180
     myServo.write(angle);                 // Move servo
     inputString = "";
     stringComplete = false;
   }
 
-  delay(200);
+  delay(20);
 }
 
 float readSharpDistanceCm(int pin) {
