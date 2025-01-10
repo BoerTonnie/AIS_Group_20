@@ -2,6 +2,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import gymnasium as gym
+from gymnasium.spaces import Box
 
 
 
@@ -24,7 +26,7 @@ import matplotlib.pyplot as plt
 
 # ------------- Functions -------------
 
-class simulate:
+class simulate(gym.Env):
     def __init__(self, StartingDistance):
         self.deltaSimulationTime = 0.05  # amount of time between each cycle of simulation
         self.speed = 0
@@ -41,6 +43,13 @@ class simulate:
         }
 
         self.df = pd.DataFrame(data)
+        self.action_space = Box(-3.4028234663852886e+38, 3.4028234663852886e+38, (1,), np.float32)
+        # Define the observation space
+        self.observation_space = Box(
+            low=np.array([0.0, -10, -10]),    # Lower bounds for distance, velocity, and angle
+            high=np.array([30, 10, 10]), # Upper bounds for distance, velocity, and angle
+            dtype=np.float32
+        )
 
         # Initialize a simulation cycle
         # `newCycle` requires an argument, so it can't be called here without fixing the input
@@ -50,11 +59,11 @@ class simulate:
 
     # Define the acceleration as a function of time, velocity, or position
     def acceleration(self, v, theta):
-        return -9.81 * np.sin((2*theta)/np.pi) #+ 0.1 * v  #  gravity * sin(angle) + velocity-dependent drag
+        return -9.81 * np.sin((2*theta)/np.pi)
     
     def mapAngle(self, servoAngle):
-        servo_min = 0
-        servo_max = 255
+        servo_min = 60
+        servo_max = 100
 
         angle_min = -10
         angle_max = 10
@@ -84,7 +93,7 @@ class simulate:
 
         # Plot each column in a subplot
         for i, column in enumerate(self.df.columns[1:]):  # Skip 'Time' column
-            axes[i].plot(self.df['Time'], self.df[column], marker='o', label=column)
+            axes[i].plot(self.df['Time'], self.df[column], label=column)
             axes[i].set_title(f'{column} vs Time')
             axes[i].set_ylabel(column)
             axes[i].grid(True)
@@ -113,13 +122,30 @@ class simulate:
         self.storeInfo(angle, acc)
 
 
+
+
+    def reset(self, *, seed: int | None = None, options: dict | None = None):
+        # reset super
+        # set the servo angle
+        # GENERATE RANDOM TARGET
+        #
+        # read ball position and vel
+        # return obs
+        pass
+
+    def render(self):
+        pass
+
 # ------------- main cycle -------------
 
 if __name__ == "__main__":
+    # sim = simulate(10)
+    # theta = 10
+    # simLoops = 100
+    # for i in range(simLoops):
+    #     sim.newCycle(theta)
+    # sim.showDataframe()
+    # sim.plotDataframe()
+
     sim = simulate(10)
-    theta = 10
-    simLoops = 1000
-    for i in range(simLoops):
-        sim.newCycle(theta)
-    sim.showDataframe()
-    sim.plotDataframe()
+    print (sim.observation_space.sample())
