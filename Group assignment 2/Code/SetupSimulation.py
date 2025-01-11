@@ -10,6 +10,7 @@ from gymnasium.spaces import Box
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.evaluation import evaluate_policy
 
 
 
@@ -172,6 +173,7 @@ class simulate(gym.Env):
                 reward += 0.5
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
+            reward = 0.5
         else:
             if self.steps_beyond_terminated == 0:
                 print(
@@ -215,3 +217,29 @@ if __name__ == "__main__":
     # check if the environment adheres to the Gym API
     check_env(env, warn=True)
 
+    # wrap the environment for Stable-Baselines3
+    vec_env = DummyVecEnv([lambda: env])
+
+    # initialize the RL model (PPO with MLP policy)
+    model = PPO("MlpPolicy", vec_env, verbose=1)
+
+    # train the model
+    print("model train start")
+    model.learn(total_timesteps=10000)
+
+    # Save the trained model
+    print("Training completed \n\n\nSave the trained model")
+    model.save("simulate_ppo_model")
+
+    # Evaluate the trained model
+    mean_reward, std_reward = evaluate_policy(model, vec_env, n_eval_episodes=10)
+    print(f"Mean reward: {mean_reward} +/- {std_reward}")
+
+    # Test the trained model
+    obs, _ = env.reset()
+
+    for _ in range (200): # Run for 200 steps
+        action, _ = model.predict(obs)
+        obs, reward, terminated, truncated, info = env.step(action)
+        if terminated or truncated:
+            obs, _ = env.reset
