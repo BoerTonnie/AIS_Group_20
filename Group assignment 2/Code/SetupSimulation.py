@@ -4,9 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import gymnasium as gym
 import random
+
 from gymnasium.spaces import Box
 
-
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.evaluation import evaluate_policy
 
 
 
@@ -54,8 +58,8 @@ class simulate(gym.Env):
         return -9.81 * np.sin((2*theta)/np.pi)
     
     def mapAngle(self, servoAngle):
-        servo_min = 60
-        servo_max = 100
+        servo_min = -1
+        servo_max = 1
 
         angle_min = -10
         angle_max = 10
@@ -65,12 +69,16 @@ class simulate(gym.Env):
     # Stores all info of the simulation for plotting purposes
     # Needs to be done after each itteration of the simulation
     def storeInfo(self, angle, acc):
+        # Extract scalar values if these are numpy arrays
+        speed_scalar = self.speed.item() if isinstance(self.speed, np.ndarray) else self.speed
+        distance_scalar = self.distance.item() if isinstance(self.distance, np.ndarray) else self.distance
+
         newData = {
-            'Time': self.simulationTime,
-            'Angle': angle,
-            'Acceleration': acc,
-            'Velocity': self.speed,
-            'Distance': self.distance
+            'Time': float(self.simulationTime),
+            'Angle': float(angle) if isinstance(angle, (int, float)) else float(angle[0]),
+            'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
+            'Velocity': float(speed_scalar),
+            'Distance': float(distance_scalar)
         }
         self.df.loc[len(self.df)] = newData
         
@@ -139,7 +147,10 @@ class simulate(gym.Env):
 
         # return obs
         obs = [self.distance, self.speed, self.angle] # check if extran info is needed in stable baseline 3
-        return np.array(obs, dtype=np.float32) # might require extra info
+        return np.array(obs, dtype=np.float32).flatten(), {} # might require extra info
+    
+
+
 
     def step(self, action):
         # set the servo angle to action
@@ -155,12 +166,14 @@ class simulate(gym.Env):
         )
 
         # calcualte reward
+        # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = 0.5
             if self.distance > self.goal + self.goal_threshold and self.distance < self.goal - self.goal_threshold:
                 reward += 0.5
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
+            reward = 0.5
         else:
             if self.steps_beyond_terminated == 0:
                 print(
@@ -173,8 +186,8 @@ class simulate(gym.Env):
             reward = 0.0
 
         # get obs
-        obs = self.distance, self.speed, self.angle
-        return np.array(obs, dtype=np.float32), reward, terminated, False, {}
+        obs = [self.distance, self.speed, self.angle]
+        return np.array(obs, dtype=np.float32).flatten(), reward, terminated, False, {}
 
     def render(self):
         pass
@@ -190,5 +203,43 @@ if __name__ == "__main__":
     # sim.showDataframe()
     # sim.plotDataframe()
 
-    sim = simulate(10)
-    print (sim.observation_space.sample())
+    # sim = simulate(10)
+    # print (sim.observation_space.sample())
+
+    # base_env = sim.make("FliFlaFloe")
+    # print (base_env.action_space)
+
+
+
+    # Initialize the environment with a starting distance
+    env = simulate(StartingDistance=10)
+
+    # check if the environment adheres to the Gym API
+    check_env(env, warn=True)
+
+    # wrap the environment for Stable-Baselines3
+    vec_env = DummyVecEnv([lambda: env])
+
+    # initialize the RL model (PPO with MLP policy)
+    model = PPO("MlpPolicy", vec_env, verbose=1)
+
+    # train the model
+    print("model train start")
+    model.learn(total_timesteps=10000)
+
+    # Save the trained model
+    print("Training completed \n\n\nSave the trained model")
+    model.save("simulate_ppo_model")
+
+    # Evaluate the trained model
+    mean_reward, std_reward = evaluate_policy(model, vec_env, n_eval_episodes=10)
+    print(f"Mean reward: {mean_reward} +/- {std_reward}")
+
+    # Test the trained model
+    obs, _ = env.reset()
+
+    for _ in range (200): # Run for 200 steps
+        action, _ = model.predict(obs)
+        obs, reward, terminated, truncated, info = env.step(action)
+        if terminated or truncated:
+            obs, _ = env.reset
