@@ -5,6 +5,7 @@ const int sensorPin = A0;    // Sharp IR sensor output -> A0
 const int servoPin  = 9;     // Servo control pin -> 9
 float scdistance = 0.0;
 float scpitch = 0.0;
+float roll = 0, pitch = 0;
 
 const uint8_t NUM_SAMPLES = 10;
 int samples[NUM_SAMPLES];
@@ -16,7 +17,7 @@ String inputString = "";
 bool stringComplete = false;
 
 unsigned long previousMillis = 0;
-const long interval = 5; // 10 milliseconds for 100 times per second
+const long interval = 5; // 10 milliseconds for 50 times per second
 
 void setup() {
   Serial.begin(115200);
@@ -43,16 +44,11 @@ void setup() {
 void loop() {
   //init some var's
   float distanceCm = readSharpDistanceCm(sensorPin);
-  float roll = 0, pitch = 0;
   float xAcc, yAcc, zAcc;
   float scdistance = 0;
   float scpitch = 0;
 
-  //reading the acclerometer
-  if (IMU.accelerationAvailable()) {
-    IMU.readAcceleration(xAcc, yAcc, zAcc);
-    pitch = atan2(-xAcc, sqrt(yAcc * yAcc + zAcc * zAcc)) * 180.0 / PI;
-  }
+ 
 
   //read the serial port
   while (Serial.available() > 0) {
@@ -79,9 +75,13 @@ void loop() {
   if (currentMillis - previousMillis >= interval) {
     // Save the last time you ran the code
     previousMillis = currentMillis;
-
+     //reading the acclerometer
+    if (IMU.accelerationAvailable()) {
+      IMU.readAcceleration(xAcc, yAcc, zAcc);
+      pitch = atan2(-xAcc, sqrt(yAcc * yAcc + zAcc * zAcc)) * 180.0 / PI;
+    }
     // map and print distance and pitch to -1 to 1
-    scdistance = map(distanceCm*100, 400, 1800, -1000, 1000);
+    scdistance = map(distanceCm*100, 600, 1500, -1000, 1000);
     scpitch = map(pitch*100, -1000, 1100, -1000, 1000);
     Serial.print(scdistance/1000, 2);
     Serial.print("  ");
