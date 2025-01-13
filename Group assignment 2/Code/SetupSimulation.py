@@ -11,6 +11,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.monitor import Monitor
 
 
 
@@ -105,8 +106,14 @@ class simulate(gym.Env):
         # Adjust layout
         plt.tight_layout()
         plt.show()
-
-        
+    
+    def saveDataframe(self, filename="Group assignment 2\Code\simulation_data.csv"):
+        """
+        Save the DataFrame to a CSV file.
+        :param filename: Name of the CSV file to save.
+        """
+        self.df.to_csv(filename, index=False)
+        #print(f"Simulation data saved to {filename}")        
 
     def newCycle(self, servoAngle):
         #newDistance = self.distance * 
@@ -125,8 +132,15 @@ class simulate(gym.Env):
 
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
+
+        # Store simulation information
+        self.saveDataframe()
+
         # reset super
         super().reset(seed=seed)
+
+        # Reset simulation time to 0
+        self.simulationTime = 0
 
         # set the servo angle
         self.angle = 0
@@ -145,13 +159,20 @@ class simulate(gym.Env):
         # reset terminated condition
         self.steps_beyond_terminated = None
 
+        # Reset dataframe to track data correctly
+        data = {
+            'Time': [self.simulationTime],
+            'Angle': [0],
+            'Acceleration': [0],
+            'Velocity': [self.speed],
+            'Distance': [self.distance]
+        }
+        self.df = pd.DataFrame(data)
+
         # return obs
         obs = [self.distance, self.speed, self.angle] # check if extran info is needed in stable baseline 3
         return np.array(obs, dtype=np.float32).flatten(), {} # might require extra info
     
-
-
-
     def step(self, action):
         # set the servo angle to action
         Actual_angle = action # read actual
@@ -192,6 +213,44 @@ class simulate(gym.Env):
     def render(self):
         pass
 
+def plotDataframeFromCSV(filename):
+    """
+    Reads simulation data from a CSV file and plots the progress.
+
+    :param filename: The path to the CSV file containing the simulation data.
+    """
+    try:
+        # Read the CSV file
+        df = pd.read_csv(filename)
+        
+        # Ensure the CSV contains a 'Time' column
+        if 'Time' not in df.columns:
+            raise ValueError("The CSV file must contain a 'Time' column.")
+
+        # Create subplots for each column except 'Time'
+        num_columns = len(df.columns) - 1  # Exclude 'Time'
+        fig, axes = plt.subplots(num_columns, 1, figsize=(8, 4 * num_columns), sharex=True)
+
+        # Plot each column against Time
+        for i, column in enumerate(df.columns[1:]):  # Skip 'Time' column
+            axes[i].plot(df['Time'], df[column], label=column)
+            axes[i].set_title(f'{column} vs Time')
+            axes[i].set_ylabel(column)
+            axes[i].grid(True)
+            axes[i].legend()
+
+        # Add x-axis label to the bottom plot
+        axes[-1].set_xlabel('Time')
+
+        # Adjust layout and show the plot
+        plt.tight_layout()
+        plt.show()
+
+    except FileNotFoundError:
+        print(f"Error: File '{filename}' not found.")
+    except Exception as e:
+        print(f"Error while plotting from CSV: {e}")
+
 # ------------- main cycle -------------
 
 if __name__ == "__main__":
@@ -214,6 +273,9 @@ if __name__ == "__main__":
     # Initialize the environment with a starting distance
     env = simulate(StartingDistance=10)
 
+    # Wrap the environment with Monitor for logging
+    env = Monitor(env)
+
     # check if the environment adheres to the Gym API
     check_env(env, warn=True)
 
@@ -235,11 +297,14 @@ if __name__ == "__main__":
     mean_reward, std_reward = evaluate_policy(model, vec_env, n_eval_episodes=10)
     print(f"Mean reward: {mean_reward} +/- {std_reward}")
 
-    # Test the trained model
-    obs, _ = env.reset()
 
-    for _ in range (200): # Run for 200 steps
-        action, _ = model.predict(obs)
-        obs, reward, terminated, truncated, info = env.step(action)
-        if terminated or truncated:
-            obs, _ = env.reset
+    # # Test the trained model and collect simulation data
+    # obs, _ = env.reset()
+
+    # for _ in range(200):  # Run for 200 steps
+    #     action, _ = model.predict(obs)
+    #     obs, reward, terminated, truncated, info = env.step(action)
+    #     if terminated or truncated:
+    #         break  # End simulation if terminated or truncated
+    
+    plotDataframeFromCSV("Group assignment 2\Code\simulation_data.csv")
