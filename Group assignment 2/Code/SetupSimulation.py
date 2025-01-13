@@ -1,4 +1,6 @@
 # ------------- Imports ---------------
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,6 +29,11 @@ class simulate(gym.Env):
         self.maxDistance = 30
         self.minDistance = 4
         self.goal_threshold = 0.5
+
+        self.maxSimulationTime = 3000 # this number times 0.05 = simTime
+
+        self.stepCounter = 0
+        self.stepCounterMax = 50
 
         # Correctly initialize the DataFrame
         data = {
@@ -107,13 +114,13 @@ class simulate(gym.Env):
         plt.tight_layout()
         plt.show()
     
-    def saveDataframe(self, filename="Group assignment 2\Code\simulation_data.csv"):
+    def saveDataframe(self, filename="Group assignment 2/Code/simulation_data.csv"):
         """
         Save the DataFrame to a CSV file.
         :param filename: Name of the CSV file to save.
         """
         self.df.to_csv(filename, index=False)
-        #print(f"Simulation data saved to {filename}")        
+        print(f"Simulation data saved to {filename}")        
 
     def newCycle(self, servoAngle):
         #newDistance = self.distance * 
@@ -133,8 +140,13 @@ class simulate(gym.Env):
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
 
-        # Store simulation information
-        self.saveDataframe()
+
+        if self.stepCounter == self.stepCounterMax:
+            # Store simulation information
+            self.saveDataframe()
+            self.stepCounter = 0
+
+        self.stepCounter += 1
 
         # reset super
         super().reset(seed=seed)
@@ -184,6 +196,7 @@ class simulate(gym.Env):
         terminated = bool(
             self.distance < self.minDistance
             or self.distance > self.maxDistance
+            or self.simulationTime > self.maxSimulationTime
         )
 
         # calcualte reward
@@ -287,14 +300,14 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=50000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
     model.save("simulate_ppo_model")
 
     # Evaluate the trained model
-    mean_reward, std_reward = evaluate_policy(model, vec_env, n_eval_episodes=10)
+    mean_reward, std_reward = evaluate_policy(model, vec_env, n_eval_episodes=50)
     print(f"Mean reward: {mean_reward} +/- {std_reward}")
 
 
