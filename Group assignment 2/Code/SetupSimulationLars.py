@@ -24,11 +24,16 @@ class simulate(gym.Env):
         self.deltaSimulationTime = 0.05  # amount of time between each cycle of simulation
         self.speed = 0
         self.distance = StartingDistance
-        self.simulationTime = 0
+        self.simulationTime = 0 
 
-        self.maxDistance = 30
-        self.minDistance = 4
+        self.maxDistance = 1
+        self.minDistance = -1
         self.goal_threshold = 0.5
+
+        self.maxSimulationTime = 300 # this number times 0.05 = simTime
+
+        self.stepCounter = 0
+        self.stepCounterMax = 10
 
         # Correctly initialize the DataFrame
         data = {
@@ -43,8 +48,8 @@ class simulate(gym.Env):
         self.action_space = Box(-1, 1, (1,), np.float32) # Action space for: Servo_Angle_Low, Servo_Angle_High, Shape(How much servos there are), data type
         # Define the observation space
         self.observation_space = Box(
-            low=np.array([0.0, -10, -10]),    # Lower bounds for distance, velocity, and angle
-            high=np.array([30, 10, 10]), # Upper bounds for distance, velocity, and angle
+            low=np.array([-1, -1, -1]),    # Lower bounds for distance, velocity, and angle
+            high=np.array([1, 1, 1]), # Upper bounds for distance, velocity, and angle
             dtype=np.float32
         )
 
@@ -60,12 +65,20 @@ class simulate(gym.Env):
     def acceleration(self, v, theta):
         return -9.81 * np.sin((2*theta)/np.pi)
     
-    def mapAngle(self, servoAngle):
-        servo_min = -1
-        servo_max = 1
+    def mapAngle(self, servoAngle, direction):
+        if direction == False:
+            servo_min = -1
+            servo_max = 1
 
-        angle_min = -10
-        angle_max = 10
+            angle_min = -10
+            angle_max = 10
+        else:
+            servo_min = -10
+            servo_max = 10
+
+            angle_min = -1
+            angle_max = 1
+            
 
         return (servoAngle - servo_min) * (angle_max - angle_min) / (servo_max - servo_min) + angle_min
     
@@ -115,28 +128,35 @@ class simulate(gym.Env):
         :param filename: Name of the CSV file to save.
         """
         self.df.to_csv(filename, index=False)
-        #print(f"Simulation data saved to {filename}")        
+        print(f"Simulation data saved to {filename}")        
 
-    def newCycle(self, servoAngle):
-        #newDistance = self.distance * 
+    def newCycle(self, IMUAngle):
         #print("New simulation cycle")
+        # IMU angle: -1 - > 1
+        # self.angle: -10 -> 10
+        calculatedAngle = self.mapAngle(IMUAngle, direction=False)
 
-        self.angle = self.mapAngle(servoAngle)
-        acc = self.acceleration(self.speed, self.angle)  # calculate acceleration on this cycle
+        self.angle = IMUAngle
+        acc = self.acceleration(self.speed, calculatedAngle)  # calculate acceleration on this cycle
         self.speed = self.speed + acc * self.deltaSimulationTime # update speed
         self.distance = self.distance + self.speed * self.deltaSimulationTime # update distance to sensor
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
 
         # Store information for debugging and plotting purposes
-        self.storeInfo(self.angle, acc)
+        self.storeInfo(calculatedAngle, acc)
 
 
 
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
 
-        # Store simulation information
-        self.saveDataframe()
+
+        if self.stepCounter == self.stepCounterMax:
+            # Store simulation information
+            self.saveDataframe()
+            self.stepCounter = 0
+
+        self.stepCounter += 1
 
         # reset super
         super().reset(seed=seed)
@@ -177,21 +197,28 @@ class simulate(gym.Env):
     
     def step(self, action):
         # set the servo angle to action
-        Actual_angle = action # read actual
+        Actual_angle = action # read actual (Should be -1 -> 1)
 
         # do simuloation stuff but later read from arduino
         self.newCycle(Actual_angle)
+        # self.angle (-1 -> 1) represents -10 -> 10 degrees
+        # self.speed (-1 -> 1) represents -10 -> 10 cm/s
+        # self.distance (-1 -> 1) represemts 0 -> 30 cm
+
+
 
         # calculate termination
         terminated = bool(
             self.distance < self.minDistance
             or self.distance > self.maxDistance
+            or self.simulationTime > self.maxSimulationTime
         )
 
         # calcualte reward
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
-            reward = 0.5
+            reward = float(0.5*(1 - (abs(self.goal - self.distance[-1])) / self.maxDistance))
+
             if self.distance > self.goal + self.goal_threshold and self.distance < self.goal - self.goal_threshold:
                 reward += 0.5
         elif self.steps_beyond_terminated is None:
@@ -273,7 +300,7 @@ if __name__ == "__main__":
 
 
     # Initialize the environment with a starting distance
-    env = simulate(StartingDistance=10)
+    env = simulate(StartingDistance=0.2)
 
     # Wrap the environment with Monitor for logging
     env = Monitor(env)
@@ -289,7 +316,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=100000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
