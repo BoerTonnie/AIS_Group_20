@@ -83,8 +83,10 @@ void loop() {
     // map and print distance and pitch to -1 to 1
     scdistance = map(distanceCm*100, 600, 1500, -1000, 1000);
     scpitch = map(pitch*100, -1000, 1100, -1000, 1000);
+    Serial.print("D");
     Serial.print(scdistance/1000, 2);
     Serial.print("  ");
+    Serial.print("P");
     Serial.println(scpitch/1000, 2);
   }
 }
