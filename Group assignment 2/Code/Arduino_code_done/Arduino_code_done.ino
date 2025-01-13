@@ -17,7 +17,7 @@ String inputString = "";
 bool stringComplete = false;
 
 unsigned long previousMillis = 0;
-const long interval = 5; // 10 milliseconds for 50 times per second
+const long interval = 1; // 10 milliseconds for 50 times per second
 
 void setup() {
   Serial.begin(115200);

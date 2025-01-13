@@ -2,14 +2,14 @@ import time
 from control_serial import ArduinoCommunicator
 
 def main():
-    arduino = ArduinoCommunicator(port='COM7', baudrate=9600)
+    arduino = ArduinoCommunicator(port='COM7', baudrate=115200)
     try:
         while True:
             dist, pitch = arduino.read_data()
             if dist is not None and pitch is not None:
-                print(f"Distance: {dist:.3f},  Pitch: {pitch:.3f}")
+                print(f"Distance: {dist:.2f},  Pitch: {pitch:.2f}")
             arduino.push_angle(0.0)
-            time.sleep(0.01)
+            time.sleep(0.001)
     except KeyboardInterrupt:
         print("Exiting script.")
     finally:
