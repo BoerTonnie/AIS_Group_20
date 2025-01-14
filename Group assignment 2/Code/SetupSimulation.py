@@ -199,6 +199,8 @@ class simulate(gym.Env):
         # GENERATE RANDOM TARGET
         lowerBound = self.minDistance + self.goal_threshold
         upperBound = self.maxDistance - self. goal_threshold
+
+        # calculate distance to goal
         self.goal = random.uniform(lowerBound, upperBound)
 
         # read ball position and vel
@@ -206,7 +208,7 @@ class simulate(gym.Env):
 
         randomDistance = random.uniform(self.lowerBound, self.upperBound)
         self.distance = [float(randomDistance)] * 5
-
+        self.distanceToGoal = self.goal - self.distance[0]
 
         # reset terminated condition
         self.steps_beyond_terminated = None
@@ -257,10 +259,10 @@ class simulate(gym.Env):
         # calcualte reward
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
-            reward = float(0.5*(1 - (abs(self.goal - self.distance[0])) / self.maxDistance))
+            reward = float(0.8*(1 - (abs(self.goal - self.distance[0])) / self.maxDistance))
 
             if self.distance[0] > self.goal + self.goal_threshold and self.distance[0] < self.goal - self.goal_threshold:
-                reward += 0.5
+                reward += 0.2
                 if self.stablecount > 50:
                     terminated = True
                     reward += 500
