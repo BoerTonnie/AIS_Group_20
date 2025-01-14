@@ -164,6 +164,8 @@ class simulate(gym.Env):
         self.speed = self.speed + acc * self.deltaSimulationTime # update speed
         self.distance[0] = self.distance[0] + self.speed * self.deltaSimulationTime # update distance to sensor
         self.distance[0] = self.distance[0] * (1 - (random.uniform(self.lowerBound, self.upperBound) * self.noicePercentage))
+        if self.distance[0] > 1.0: self.distance[0] = 1.0
+        if self.distance[0] < -1.0: self.distance[0] = -1.0
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
 
         # calculate distance to goal
@@ -365,7 +367,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=100000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
