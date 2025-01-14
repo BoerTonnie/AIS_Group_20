@@ -29,6 +29,8 @@ class simulate(gym.Env):
         self.maxDistance = 1
         self.minDistance = -1
         self.goal_threshold = 0.5
+        self.stablecount = 0
+        self.stablegoal = 50
 
         self.maxSimulationTime = 300 # this number times 0.05 = simTime
 
@@ -63,7 +65,7 @@ class simulate(gym.Env):
 
     # Define the acceleration as a function of time, velocity, or position
     def acceleration(self, v, theta):
-        return -9.81 * np.sin((2*theta)/np.pi)
+        return 9.81 * np.sin((2*theta)/np.pi)
     
     def mapAngle(self, servoAngle, direction):
         if direction == False:
@@ -91,7 +93,7 @@ class simulate(gym.Env):
 
         newData = {
             'Time': float(self.simulationTime),
-            'Angle': float(angle) if isinstance(angle, (int, float)) else float(angle[0]),
+            'Angle': float(angle-10) if isinstance(angle, (int, float)) else float(angle[0]-10),
             'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
             'Velocity': float(speed_scalar),
             'Distance': float(distance_scalar)
@@ -134,7 +136,7 @@ class simulate(gym.Env):
         #print("New simulation cycle")
         # IMU angle: -1 - > 1
         # self.angle: -10 -> 10
-        calculatedAngle = self.mapAngle(IMUAngle, direction=False)
+        calculatedAngle = self.mapAngle(IMUAngle, direction=True)
 
         self.angle = IMUAngle
         acc = self.acceleration(self.speed, calculatedAngle)  # calculate acceleration on this cycle
@@ -198,7 +200,6 @@ class simulate(gym.Env):
     def step(self, action):
         # set the servo angle to action
         Actual_angle = action # read actual (Should be -1 -> 1)
-
         # do simuloation stuff but later read from arduino
         self.newCycle(Actual_angle)
         # self.angle (-1 -> 1) represents -10 -> 10 degrees
@@ -214,13 +215,20 @@ class simulate(gym.Env):
             or self.simulationTime > self.maxSimulationTime
         )
 
+        if abs(self.distance - self.goal) <= self.goal_threshold:
+            self.stablecount += 1
+        else:
+            self.stablecount = 0
+
         # calcualte reward
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = float(0.5*(1 - (abs(self.goal - self.distance[-1])) / self.maxDistance))
-
             if self.distance > self.goal + self.goal_threshold and self.distance < self.goal - self.goal_threshold:
                 reward += 0.5
+                if self.stablecount > 50:
+                    terminated = True
+                    reward += 500
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
@@ -316,7 +324,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=10000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
