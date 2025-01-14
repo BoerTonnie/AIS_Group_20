@@ -20,20 +20,26 @@ from stable_baselines3.common.monitor import Monitor
 # ------------- Functions -------------
 
 class simulate(gym.Env):
-    def __init__(self, StartingDistance):
+    def __init__(self):
         self.deltaSimulationTime = 0.05  # amount of time between each cycle of simulation
         self.speed = 0
-        self.distance = StartingDistance
+        
         self.simulationTime = 0 
 
         self.maxDistance = 1
         self.minDistance = -1
         self.goal_threshold = 0.5
+        self.noicePercentage = 0.03
 
-        # GENERATE RANDOM TARGET
-        lowerBound = self.minDistance + self.goal_threshold
-        upperBound = self.maxDistance - self. goal_threshold
-        self.goal = random.uniform(lowerBound, upperBound)
+        # GENERATE RANDOM bounds
+        self.lowerBound = self.minDistance + self.goal_threshold
+        self.upperBound = self.maxDistance - self. goal_threshold
+
+        randomDistance = random.uniform(self.lowerBound, self.upperBound)
+        self.distance = [randomDistance] + [randomDistance] * 4
+        self.goal = random.uniform(self.lowerBound, self.upperBound)
+        self.angle = 0
+
 
         self.maxSimulationTime = 150 # this number times 0.05 = simTime
 
@@ -46,7 +52,7 @@ class simulate(gym.Env):
             'Angle': [0],
             'Acceleration': [0],
             'Velocity': [self.speed],
-            'Distance': [self.distance],
+            'Distance': [self.distance[0]],
             'Goal': [self.goal]
         }
 
@@ -54,8 +60,8 @@ class simulate(gym.Env):
         self.action_space = Box(-1, 1, (1,), np.float32) # Action space for: Servo_Angle_Low, Servo_Angle_High, Shape(How much servos there are), data type
         # Define the observation space
         self.observation_space = Box(
-            low=np.array([-1, -1, -1]),    # Lower bounds for distance, velocity, and angle
-            high=np.array([1, 1, 1]), # Upper bounds for distance, velocity, and angle
+            low=np.array([-1, -1, -1, -1, -1, -1]),    # Lower bounds for distance[0:5] and angle
+            high=np.array([1, 1, 1, 1, 1, 1]), # Upper bounds for distance[0:5] and angle
             dtype=np.float32
         )
 
@@ -93,14 +99,14 @@ class simulate(gym.Env):
     def storeInfo(self, angle, acc):
         # Extract scalar values if these are numpy arrays
         speed_scalar = self.speed.item() if isinstance(self.speed, np.ndarray) else self.speed
-        distance_scalar = self.distance.item() if isinstance(self.distance, np.ndarray) else self.distance
+        # distance_scalar = self.distance.item() if isinstance(self.distance, np.ndarray) else self.distance
 
         newData = {
             'Time': float(self.simulationTime),
             'Angle': float(angle) if isinstance(angle, (int, float)) else float(angle[0]),
             'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
             'Velocity': float(speed_scalar),
-            'Distance': float(distance_scalar),
+            'Distance': float(self.distance[0]),
             'Goal': float(self.goal)
         }
         self.df.loc[len(self.df)] = newData
@@ -142,12 +148,20 @@ class simulate(gym.Env):
         # IMU angle: -1 - > 1
         # self.angle: -10 -> 10
         calculatedAngle = self.mapAngle(IMUAngle, direction=False)
+        self.distance[4] = self.distance[3]
+        self.distance[3] = self.distance[2]
+        self.distance[2] = self.distance[1]
+        self.distance[1] = self.distance[0]
 
         self.angle = IMUAngle
         acc = self.acceleration(self.speed, calculatedAngle)  # calculate acceleration on this cycle
         self.speed = self.speed + acc * self.deltaSimulationTime # update speed
-        self.distance = self.distance + self.speed * self.deltaSimulationTime # update distance to sensor
+        self.distance[0] = self.distance[0] + self.speed * self.deltaSimulationTime # update distance to sensor
+        self.distance[0] = float(self.distance[0] * (1 - random.uniform(self.lowerBound, self.upperBound)))
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
+
+        # check for correct array configuration
+        assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
 
         # Store information for debugging and plotting purposes
         self.storeInfo(calculatedAngle, acc)
@@ -156,7 +170,6 @@ class simulate(gym.Env):
 
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
-
 
         if self.stepCounter == self.stepCounterMax:
             # Store simulation information
@@ -179,11 +192,12 @@ class simulate(gym.Env):
         upperBound = self.maxDistance - self. goal_threshold
         self.goal = random.uniform(lowerBound, upperBound)
 
-
         # read ball position and vel
-        self.speed = 0 # read actual
+        self.speed = 0
 
-        self.distance = random.uniform(lowerBound, upperBound) # read actual 
+        randomDistance = random.uniform(self.lowerBound, self.upperBound)
+        self.distance = [float(randomDistance)] * 5
+
 
         # reset terminated condition
         self.steps_beyond_terminated = None
@@ -194,17 +208,21 @@ class simulate(gym.Env):
             'Angle': [0],
             'Acceleration': [0],
             'Velocity': [self.speed],
-            'Distance': [self.distance]
+            'Distance': [self.distance[0]],
+            'Goal': [self.goal]
         }
         self.df = pd.DataFrame(data)
 
+        # check for correct array configuration
+        assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
+
         # return obs
-        obs = [self.distance, self.speed, self.angle] # check if extran info is needed in stable baseline 3
+        obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle] # check if extran info is needed in stable baseline 3
         return np.array(obs, dtype=np.float32).flatten(), {} # might require extra info
     
     def step(self, action):
         # set the servo angle to action
-        Actual_angle = action # read actual (Should be -1 -> 1)
+        Actual_angle = action[0] # read actual (Should be -1 -> 1)
 
         # do simuloation stuff but later read from arduino
         self.newCycle(Actual_angle)
@@ -216,17 +234,17 @@ class simulate(gym.Env):
 
         # calculate termination
         terminated = bool(
-            self.distance < self.minDistance
-            or self.distance > self.maxDistance
+            self.distance[0] < self.minDistance
+            or self.distance[0] > self.maxDistance
             or self.simulationTime > self.maxSimulationTime
         )
 
         # calcualte reward
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
-            reward = float(0.5*(1 - (abs(self.goal - self.distance[-1])) / self.maxDistance))
+            reward = float(0.5*(1 - (abs(self.goal - self.distance[0])) / self.maxDistance))
 
-            if self.distance > self.goal + self.goal_threshold and self.distance < self.goal - self.goal_threshold:
+            if self.distance[0] > self.goal + self.goal_threshold and self.distance[0] < self.goal - self.goal_threshold:
                 reward += 0.5
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
@@ -242,8 +260,12 @@ class simulate(gym.Env):
             self.steps_beyond_terminated += 1
             reward = 0.0
 
+        # check for correct array configuration
+        assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
+
         # get obs
-        obs = [self.distance, self.speed, self.angle]
+        obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle]
+        # print(f"obs: {obs}")
         return np.array(obs, dtype=np.float32).flatten(), reward, terminated, False, {}
 
     def render(self):
@@ -306,8 +328,8 @@ if __name__ == "__main__":
 
 
 
-    # Initialize the environment with a starting distance
-    env = simulate(StartingDistance=0.2)
+    # Initialize the environment
+    env = simulate()
 
     # Wrap the environment with Monitor for logging
     env = Monitor(env)
