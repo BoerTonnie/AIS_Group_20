@@ -345,7 +345,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=10000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
