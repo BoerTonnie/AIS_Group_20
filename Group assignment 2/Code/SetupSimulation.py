@@ -28,8 +28,8 @@ class simulate(gym.Env):
 
         self.maxDistance = 1
         self.minDistance = -1
-        self.goal_threshold = 0.5
-        self.noicePercentage = 0.03
+        self.goal_threshold = 0.05
+        self.noicePercentage = 0.01
         self.stablecount = 0
         self.stablegoal = 50
 
@@ -38,7 +38,7 @@ class simulate(gym.Env):
         self.upperBound = self.maxDistance - self. goal_threshold
 
         randomDistance = random.uniform(self.lowerBound, self.upperBound)
-        self.distance = [randomDistance] + [randomDistance] * 4
+        self.distance = [randomDistance] * 5
         self.goal = random.uniform(self.lowerBound, self.upperBound)
         self.angle = 0
 
@@ -163,7 +163,7 @@ class simulate(gym.Env):
         acc = self.acceleration(self.speed, calculatedAngle)  # calculate acceleration on this cycle
         self.speed = self.speed + acc * self.deltaSimulationTime # update speed
         self.distance[0] = self.distance[0] + self.speed * self.deltaSimulationTime # update distance to sensor
-        self.distance[0] = float(self.distance[0] * (1 - random.uniform(self.lowerBound, self.upperBound)))
+        self.distance[0] = self.distance[0] * (1 - (random.uniform(self.lowerBound, self.upperBound) * self.noicePercentage))
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
 
         # calculate distance to goal
@@ -363,7 +363,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=10000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
