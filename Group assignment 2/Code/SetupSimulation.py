@@ -40,6 +40,8 @@ class simulate(gym.Env):
         self.goal = random.uniform(self.lowerBound, self.upperBound)
         self.angle = 0
 
+        # calculate distance to goal
+        self.distanceToGoal = self.goal - self.distance[0]
 
         self.maxSimulationTime = 150 # this number times 0.05 = simTime
 
@@ -53,15 +55,16 @@ class simulate(gym.Env):
             'Acceleration': [0],
             'Velocity': [self.speed],
             'Distance': [self.distance[0]],
-            'Goal': [self.goal]
+            'Goal': [self.goal],
+            'Distance To Goal': [self.distanceToGoal]
         }
 
         self.df = pd.DataFrame(data)
         self.action_space = Box(-1, 1, (1,), np.float32) # Action space for: Servo_Angle_Low, Servo_Angle_High, Shape(How much servos there are), data type
         # Define the observation space
         self.observation_space = Box(
-            low=np.array([-1, -1, -1, -1, -1, -1]),    # Lower bounds for distance[0:5] and angle
-            high=np.array([1, 1, 1, 1, 1, 1]), # Upper bounds for distance[0:5] and angle
+            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1]),    # Lower bounds for distance[0:5], angle, goal, distance to goal
+            high=np.array([1, 1, 1, 1, 1, 1, 1, 1]), # Upper bounds for distance[0:5], angle, goal, distance to goal
             dtype=np.float32
         )
 
@@ -107,7 +110,8 @@ class simulate(gym.Env):
             'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
             'Velocity': float(speed_scalar),
             'Distance': float(self.distance[0]),
-            'Goal': float(self.goal)
+            'Goal': float(self.goal),
+            'Distance To Goal': float(self.distanceToGoal)
         }
         self.df.loc[len(self.df)] = newData
         
@@ -160,6 +164,9 @@ class simulate(gym.Env):
         self.distance[0] = float(self.distance[0] * (1 - random.uniform(self.lowerBound, self.upperBound)))
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
 
+        # calculate distance to goal
+        self.distanceToGoal = self.goal - self.distance[0]
+
         # check for correct array configuration
         assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
 
@@ -209,7 +216,8 @@ class simulate(gym.Env):
             'Acceleration': [0],
             'Velocity': [self.speed],
             'Distance': [self.distance[0]],
-            'Goal': [self.goal]
+            'Goal': [self.goal],
+            'Distance To Goal': [self.distanceToGoal]
         }
         self.df = pd.DataFrame(data)
 
@@ -217,7 +225,7 @@ class simulate(gym.Env):
         assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
 
         # return obs
-        obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle] # check if extran info is needed in stable baseline 3
+        obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle, self.goal, self.distanceToGoal] # check if extran info is needed in stable baseline 3
         return np.array(obs, dtype=np.float32).flatten(), {} # might require extra info
     
     def step(self, action):
@@ -264,7 +272,7 @@ class simulate(gym.Env):
         assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
 
         # get obs
-        obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle]
+        obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle, self.goal, self.distanceToGoal]
         # print(f"obs: {obs}")
         return np.array(obs, dtype=np.float32).flatten(), reward, terminated, False, {}
 
