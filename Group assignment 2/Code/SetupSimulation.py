@@ -30,6 +30,8 @@ class simulate(gym.Env):
         self.minDistance = -1
         self.goal_threshold = 0.5
         self.noicePercentage = 0.03
+        self.stablecount = 0
+        self.stablegoal = 50
 
         # GENERATE RANDOM bounds
         self.lowerBound = self.minDistance + self.goal_threshold
@@ -78,7 +80,7 @@ class simulate(gym.Env):
 
     # Define the acceleration as a function of time, velocity, or position
     def acceleration(self, v, theta):
-        return -9.81 * np.sin((2*theta)/np.pi)
+        return 9.81 * np.sin((2*theta)/np.pi)
     
     def mapAngle(self, servoAngle, direction):
         if direction == False:
@@ -247,6 +249,11 @@ class simulate(gym.Env):
             or self.simulationTime > self.maxSimulationTime
         )
 
+        if abs(self.distance[0] - self.goal) <= self.goal_threshold:
+            self.stablecount += 1
+        else:
+            self.stablecount = 0
+
         # calcualte reward
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
@@ -254,6 +261,9 @@ class simulate(gym.Env):
 
             if self.distance[0] > self.goal + self.goal_threshold and self.distance[0] < self.goal - self.goal_threshold:
                 reward += 0.5
+                if self.stablecount > 50:
+                    terminated = True
+                    reward += 500
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
@@ -353,7 +363,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=100000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
