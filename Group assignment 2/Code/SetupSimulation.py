@@ -268,7 +268,7 @@ class simulate(gym.Env):
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = float(0)
-            reward -= 0.01*Actual_angle
+            reward -= 0.1*Actual_angle
             if not(self.distance[0] < -0.95 or self.distance[0] > 0.95):    
                 reward = float(1*(1 - (abs(self.distanceToGoal) / self.maxDistance)))
                 if self.distance[0] > self.goal + self.goal_threshold and self.distance[0] < self.goal - self.goal_threshold:
@@ -376,7 +376,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=300000)
+    model.learn(total_timesteps=1000000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")
