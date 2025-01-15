@@ -6,6 +6,7 @@ const int servoPin  = 9;     // Servo control pin -> 9
 float scdistance = 0.0;
 float scpitch = 0.0;
 float roll = 0, pitch = 0;
+int angle = 90;
 
 const uint8_t NUM_SAMPLES = 10;
 int samples[NUM_SAMPLES];
@@ -17,7 +18,7 @@ String inputString = "";
 bool stringComplete = false;
 
 unsigned long previousMillis = 0;
-const long interval = 1; // 10 milliseconds for 50 times per second
+const long interval = 5; // 10 milliseconds for 50 times per second
 
 void setup() {
   Serial.begin(115200);
@@ -26,7 +27,7 @@ void setup() {
 
   // Servo setup
   myServo.attach(servoPin);
-  myServo.write(80);
+  myServo.write(90);
 
   // IMU setup
   if (!IMU.begin()) {
@@ -62,9 +63,9 @@ void loop() {
 
   //convert string from serial to int
   if (stringComplete) {
-    int angle = inputString.toInt();      // Convert string to integer
-    angle = constrain(angle, 24, 120);     // Constrain between 0 and 180
-    myServo.write(angle);                 // Move servo
+    angle = inputString.toInt();      // Convert string to integer
+    angle = constrain(angle, 60, 120);     // Constrain between 0 and 180
+    // Move servo
     // Clear for next time
     inputString = "";
     stringComplete = false;
@@ -83,6 +84,9 @@ void loop() {
     // map and print distance and pitch to -1 to 1
     scdistance = map(distanceCm*100, 600, 1500, -1000, 1000);
     scpitch = map(pitch*100, -1000, 1100, -1000, 1000);
+    if (angle >= 120){angle = 120;}
+    if (angle <= 60){angle = 60;}
+    myServo.write(angle);
     Serial.print("D");
     Serial.print(scdistance/1000, 2);
     Serial.print("  ");
