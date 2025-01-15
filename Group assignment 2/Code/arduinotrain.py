@@ -1,6 +1,7 @@
 # ------------- Imports ---------------
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import time
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,22 +15,30 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
+from control_serial import ArduinoCommunicator
 
 
 
 # ------------- Functions -------------
 
 class simulate(gym.Env):
-    def __init__(self):
+    def __init__(self, port ='COM3', baudrate=115200, timeout=0.1):
+        #init the arduini and read everything
+        self.arduino = ArduinoCommunicator(port, baudrate, timeout)
+        time.sleep(0.1)
+        self.distance = [0.0, 0.0, 0.0, 0.0, 0.0]
+        self.angle = 0
+        self.distance[0], self.angle = self.arduino.read_data()
+        if self.distance[0] == None:
+            self.distance[0] = 0.0
         self.deltaSimulationTime = 0.05  # amount of time between each cycle of simulation
-        self.speed = 0
+        self.estimated_velocity = 0
         
-        self.simulationTime = 0 
+        self.Time = 0 
 
         self.maxDistance = 1
         self.minDistance = -1
         self.goal_threshold = 0.05
-        self.noicePercentage = 0.0
         self.stablecount = 0
         self.stablegoal = 50
 
@@ -39,10 +48,7 @@ class simulate(gym.Env):
         self.lowerBound = self.minDistance + self.goal_threshold
         self.upperBound = self.maxDistance - self. goal_threshold
 
-        randomDistance = random.uniform(self.lowerBound, self.upperBound)
-        self.distance = [randomDistance] * 5
         self.goal = random.uniform(self.lowerBound, self.upperBound)
-        self.angle = 0
 
         # calculate distance to goal
         self.distanceToGoal = self.goal - self.distance[0]
@@ -54,10 +60,9 @@ class simulate(gym.Env):
 
         # Correctly initialize the DataFrame
         data = {
-            'Time': [self.simulationTime],
-            'Angle': [0],
-            'Acceleration': [0],
-            'Velocity': [self.speed],
+            'Time': [self.Time],
+            'Angle': [self.angle],
+            'Velocity': [0],
             'Distance': [self.distance[0]],
             'Goal': [self.goal],
             'Distance To Goal': [self.distanceToGoal]
@@ -67,8 +72,8 @@ class simulate(gym.Env):
         self.action_space = Box(-1, 1, (1,), np.float32) # Action space for: Servo_Angle_Low, Servo_Angle_High, Shape(How much servos there are), data type
         # Define the observation space
         self.observation_space = Box(
-            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1, -44]),    # Lower bounds for distance[0:5], angle, goal, distance to goal
-            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 44]), # Upper bounds for distance[0:5], angle, goal, distance to goal
+            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1, -44]),    # Lower bounds for distance[0:5], angle, goal, estimated, speed distance to goal
+            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 44]), # Upper bounds for distance[0:5], angle, goal, estimated speed, distance to goal
             dtype=np.float32
         )
 
@@ -81,8 +86,6 @@ class simulate(gym.Env):
 
 
     # Define the acceleration as a function of time, velocity, or position
-    def acceleration(self, v, theta):
-        return 9.81 * np.sin((2*theta)/np.pi)
     
     def mapAngle(self, servoAngle, direction):
         if direction == False:
@@ -99,19 +102,18 @@ class simulate(gym.Env):
             angle_max = 1
             
 
-        return (servoAngle - servo_min) * (angle_max - angle_min) / (servo_max - servo_min) + angle_min
+        return ( - servo_min) * (angle_max - angle_min) / (servo_max - servo_min) + angle_min
     
     # Stores all info of the simulation for plotting purposes
     # Needs to be done after each itteration of the simulation
-    def storeInfo(self, angle, acc):
+    def storeInfo(self, angle):
         # Extract scalar values if these are numpy arrays
-        speed_scalar = self.speed.item() if isinstance(self.speed, np.ndarray) else self.speed
+        speed_scalar = self.estimated_velocity.item() if isinstance(self.estimated_velocity, np.ndarray) else self.estimated_velocity
         # distance_scalar = self.distance.item() if isinstance(self.distance, np.ndarray) else self.distance
 
         newData = {
             'Time': float(self.simulationTime),
             'Angle': float(angle) if isinstance(angle, (int, float)) else float(angle[0]),
-            'Acceleration': float(acc) if isinstance(acc, (int, float)) else float(acc[0]),
             'Velocity': float(speed_scalar),
             'Distance': float(self.distance[0]),
             'Goal': float(self.goal),
@@ -151,21 +153,22 @@ class simulate(gym.Env):
         self.df.to_csv(filename, index=False)
         print(f"Simulation data saved to {filename}")        
 
-    def newCycle(self, IMUAngle):
+    def newCycle(self):
         #print("New simulation cycle")
         # IMU angle: -1 - > 1
         # self.angle: -10 -> 10
-        calculatedAngle = self.mapAngle(IMUAngle, direction=False)
+
+
         self.distance[4] = self.distance[3]
         self.distance[3] = self.distance[2]
         self.distance[2] = self.distance[1]
         self.distance[1] = self.distance[0]
 
-        self.angle = IMUAngle
-        acc = self.acceleration(self.speed, calculatedAngle)  # calculate acceleration on this cycle
-        self.speed = self.speed + acc * self.deltaSimulationTime # update speed
-        self.distance[0] = self.distance[0] + self.speed * self.deltaSimulationTime # update distance to sensor
-        self.distance[0] = self.distance[0] * (1 - (random.uniform(self.lowerBound, self.upperBound) * self.noicePercentage))
+        self.distance[0], self.angle = self.arduino.read_data()
+        if not isinstance(self.distance[0], float):
+            self.distance[0] = self.distance[1]
+        #calculatedAngle = self.mapAngle(self.angle, direction=False)
+
         if self.distance[0] > 1.0: self.distance[0] = 1.0
         if self.distance[0] < -1.0: self.distance[0] = -1.0
         self.simulationTime = self.simulationTime + self.deltaSimulationTime # itterate time for data storing purposes
@@ -174,16 +177,18 @@ class simulate(gym.Env):
         self.distanceToGoal = abs(self.goal) - abs(self.distance[0])
 
         # check for correct array configuration
+        if not all(isinstance(d, float) for d in self.distance):
+            print(self.distance)
         assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
 
         # Store information for debugging and plotting purposes
-        self.storeInfo(calculatedAngle, acc)
+        #self.storeInfo(calculatedAngle)
 
 
 
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
-
+        print("reset")
         if self.stepCounter == self.stepCounterMax:
             # Store simulation information
             self.saveDataframe()
@@ -198,7 +203,7 @@ class simulate(gym.Env):
         self.simulationTime = 0
 
         # set the servo angle
-        self.angle = 0
+        self.arduino.push_angle(0)
 
         # GENERATE RANDOM TARGET
         lowerBound = self.minDistance + self.goal_threshold
@@ -208,10 +213,7 @@ class simulate(gym.Env):
         self.goal = random.uniform(lowerBound, upperBound)
 
         # read ball position and vel
-        self.speed = 0
-
-        randomDistance = random.uniform(self.lowerBound, self.upperBound)
-        self.distance = [float(randomDistance)] * 5
+        self.estimated_velocity = 0
         self.distanceToGoal = abs(self.goal) - abs(self.distance[0])
 
         # reset terminated condition
@@ -221,8 +223,7 @@ class simulate(gym.Env):
         data = {
             'Time': [self.simulationTime],
             'Angle': [0],
-            'Acceleration': [0],
-            'Velocity': [self.speed],
+            'Velocity': [0],
             'Distance': [self.distance[0]],
             'Goal': [self.goal],
             'Distance To Goal': [self.distanceToGoal]
@@ -230,20 +231,22 @@ class simulate(gym.Env):
         self.df = pd.DataFrame(data)
 
         # check for correct array configuration
+        if not all(isinstance(d, float) for d in self.distance):
+            print(self.distance)
         assert all(isinstance(d, float) for d in self.distance), "self.distance contains non-float elements!"
 
         self.estimated_velocity = (self.distance[0] - self.distance[1]) / self.deltaSimulationTime
-
+        print("reset_done")
         # get obs
         obs = [self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.angle, self.goal, self.distanceToGoal, self.estimated_velocity]
         return np.array(obs, dtype=np.float32).flatten(), {} # might require extra info
     
     def step(self, action):
         # set the servo angle to action
-        Actual_angle = action[0] # read actual (Should be -1 -> 1)
+        self.arduino.push_angle(action[0])
 
         # do simuloation stuff but later read from arduino
-        self.newCycle(Actual_angle)
+        self.newCycle()
         # self.angle (-1 -> 1) represents -10 -> 10 degrees
         # self.speed (-1 -> 1) represents -10 -> 10 cm/s
         # self.distance (-1 -> 1) represemts 0 -> 30 cm
@@ -263,12 +266,12 @@ class simulate(gym.Env):
             self.stablecount = 0
 
         if self.stablecount > 50:
-                        terminated = True
+            terminated = True
         # calcualte reward
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = float(0)
-            reward -= 0.01*Actual_angle
+            reward -= 0.01*action[0]
             if not(self.distance[0] < -0.95 or self.distance[0] > 0.95):    
                 reward = float(1*(1 - (abs(self.distanceToGoal) / self.maxDistance)))
                 if self.distance[0] > self.goal + self.goal_threshold and self.distance[0] < self.goal - self.goal_threshold:
@@ -376,7 +379,7 @@ if __name__ == "__main__":
 
     # train the model
     print("model train start")
-    model.learn(total_timesteps=300000)
+    model.learn(total_timesteps=100000)
 
     # Save the trained model
     print("Training completed \n\n\nSave the trained model")

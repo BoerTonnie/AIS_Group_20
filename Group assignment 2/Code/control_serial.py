@@ -16,6 +16,8 @@ class ArduinoCommunicator:
         # For lines like "D0.98  P-0.01"
         self.distance_pattern = re.compile(r"D([\-\d\.]+)")
         self.pitch_pattern    = re.compile(r"P([\-\d\.]+)")
+        self.lastdist = 0.0
+        self.lastpitch = 0.0
 
 
     def read_data(self):
@@ -31,7 +33,7 @@ class ArduinoCommunicator:
         while self.ser.in_waiting > 0:
             raw_line = self.ser.readline()
             line = raw_line.decode('utf-8', errors='ignore').strip()
-
+            
         # If we got a new line, parse it
         if line is not None:
             # Print (optional) for debugging
@@ -61,11 +63,12 @@ class ArduinoCommunicator:
                 pitch = self._scale(pitch_val, -1, 1, -1, 1)
             else:
                 pitch = None
-
+            self.lastdist = dist
+            self.lastpitch = pitch
             return dist, pitch
 
         # If no line was available, return None
-        return None, None
+        return self.lastdist, self.lastpitch
 
     def push_angle(self, input_angle):
         """
