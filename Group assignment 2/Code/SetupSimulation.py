@@ -363,7 +363,7 @@ if __name__ == "__main__":
 
     # Train the model
     print("Model training started")
-    model.learn(total_timesteps=10000)  # No custom callback
+    model.learn(total_timesteps=1)  # No custom callback
 
     # Save the trained model
     print("Training completed. Saving the trained model...")

@@ -52,7 +52,7 @@ class RealWorldEnv(Env):
     def step(self, action):
         # Send the action (servo angle) to the Arduino
         self.arduino.push_angle(action[0])
-        time.sleep(0.05)
+        time.sleep(0.01)
         # Wait for the next time step to complete
         self.simulation_time += self.delta_simulation_time
 
@@ -104,8 +104,13 @@ if __name__ == "__main__":
     env = Monitor(env)
     vec_env = DummyVecEnv([lambda: env])
 
+    # Directory for TensorBoard logs
+    tensorboard_log_dir = "tensorboard_logs/simulate_ppo"
+
+
+
     # Initialize RL model
-    model = PPO("MlpPolicy", vec_env, verbose=1)
+    model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log=tensorboard_log_dir)
 
     # Train the model
     model.learn(total_timesteps=10000)
@@ -115,11 +120,3 @@ if __name__ == "__main__":
 
     # Test the model
     obs, _ = env.reset()
-    for _ in range(200):
-        action, _ = model.predict(obs)
-        obs, reward, terminated, truncated, info = env.step(action)
-        if terminated or truncated:
-            break
-
-    # Save the collected data
-    env.save_data()
