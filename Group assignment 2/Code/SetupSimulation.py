@@ -343,43 +343,30 @@ def plotDataframeFromCSV(filename):
 # ------------- main cycle -------------
 
 if __name__ == "__main__":
-    # sim = simulate(10)
-    # theta = 10
-    # simLoops = 100
-    # for i in range(simLoops):
-    #     sim.newCycle(theta)
-    # sim.showDataframe()
-    # sim.plotDataframe()
-
-    # sim = simulate(10)
-    # print (sim.observation_space.sample())
-
-    # base_env = sim.make("FliFlaFloe")
-    # print (base_env.action_space)
-
-
-
     # Initialize the environment
     env = simulate()
 
     # Wrap the environment with Monitor for logging
     env = Monitor(env)
 
-    # check if the environment adheres to the Gym API
+    # Check if the environment adheres to the Gym API
     check_env(env, warn=True)
 
-    # wrap the environment for Stable-Baselines3
+    # Wrap the environment for Stable-Baselines3
     vec_env = DummyVecEnv([lambda: env])
 
-    # initialize the RL model (PPO with MLP policy)
-    model = PPO("MlpPolicy", vec_env, verbose=1)
+    # Directory for TensorBoard logs
+    tensorboard_log_dir = "tensorboard_logs/simulate_ppo"
 
-    # train the model
-    print("model train start")
-    model.learn(total_timesteps=1000000)
+    # Initialize the RL model (PPO with MLP policy)
+    model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log=tensorboard_log_dir)
+
+    # Train the model
+    print("Model training started")
+    model.learn(total_timesteps=10000)  # No custom callback
 
     # Save the trained model
-    print("Training completed \n\n\nSave the trained model")
+    print("Training completed. Saving the trained model...")
     model.save("simulate_ppo_model")
 
     # Evaluate the trained model
@@ -387,13 +374,5 @@ if __name__ == "__main__":
     print(f"Mean reward: {mean_reward} +/- {std_reward}")
 
 
-    # # Test the trained model and collect simulation data
-    # obs, _ = env.reset()
-
-    # for _ in range(200):  # Run for 200 steps
-    #     action, _ = model.predict(obs)
-    #     obs, reward, terminated, truncated, info = env.step(action)
-    #     if terminated or truncated:
-    #         break  # End simulation if terminated or truncated
-    
+    # Plot last saved simulation
     plotDataframeFromCSV("Group assignment 2\Code\simulation_data.csv")
