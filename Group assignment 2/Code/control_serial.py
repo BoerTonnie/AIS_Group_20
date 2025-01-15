@@ -83,7 +83,7 @@ class ArduinoCommunicator:
         # Scale angle
         current_angle = self._scale(input_angle, -1, 1, 24, 130)
         # Constrain between 24 and 130
-        angle_val = max(30, min(120, current_angle))
+        angle_val = max(60, min(120, current_angle))
 
         # Send over serial
         self.ser.write((str(angle_val) + "\n").encode('utf-8'))
