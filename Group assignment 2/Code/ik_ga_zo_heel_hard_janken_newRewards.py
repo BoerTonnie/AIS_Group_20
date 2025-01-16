@@ -41,12 +41,14 @@ class RealWorldEnv(Env):
         self.data = pd.DataFrame(columns=['Time', 'Distance', 'Pitch', 'Goal', 'Reward'])
 
         self.goal = np.random.uniform(-0.7, 0.7)
+        self.goal = np.random.uniform(-0.7, 0.7)
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
         # Reset simulation variables
         self.simulation_time = 0
+        self.goal = np.random.uniform(-0.7, 0.7)
         self.goal = np.random.uniform(-0.7, 0.7)
         self.stablecount = 0
 
@@ -130,6 +132,8 @@ class RealWorldEnv(Env):
                 reward += 0.5
                 if self.stablecount > 49:
                     reward += 500
+            if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
+                 reward -= 0.3
             if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
                  reward -= 0.3
         elif self.steps_beyond_terminated is None:
