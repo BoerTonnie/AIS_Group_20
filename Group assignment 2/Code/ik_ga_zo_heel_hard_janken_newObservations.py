@@ -16,18 +16,23 @@ class RealWorldEnv(Env):
 
         # Gym environment setup
         self.action_space = Box(-1, 1, (1,), np.float32)
+        # Define the observation space
         self.observation_space = Box(
-            low=np.array([-1, -1, -1]),
-            high=np.array([1, 1, 1]),
+            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1, -44]),    # Lower bounds for distance[0:5], angle, goal, distance to goal
+            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 44]), # Upper bounds for distance[0:5], angle, goal, distance to goal
             dtype=np.float32
         )
+
 
         self.simulation_time = 0
         self.delta_simulation_time = 0.05  # time step in seconds
         self.max_simulation_time = 150  # max simulation time in seconds
 
+        self.distance = [0, 0, 0, 0, 0]
+
         # Data storage for debugging and analysis
         self.data = pd.DataFrame(columns=['Time', 'Distance', 'Pitch', 'Goal', 'Reward'])
+
         self.goal = np.random.uniform(-1, 1)
 
     def reset(self, *, seed=None, options=None):
@@ -42,11 +47,20 @@ class RealWorldEnv(Env):
         self.arduino.push_angle(0)  # Reset servo to neutral position
 
         # Initial observation from Arduino
-        distance, pitch = self.arduino.read_data()
-        if distance is None or pitch is None:
-            distance, pitch = 0, 0  # Default values if no data received
+        self.distance[0], pitch = self.arduino.read_data()
+        if self.distance[0] is None or pitch is None:
+            self.distance[0], pitch = 0, 0  # Default values if no data received
+        self.distance[1] = self.distance[0]
+        self.distance[2] = self.distance[0]
+        self.distance[3] = self.distance[0]
+        self.distance[4] = self.distance[0]
 
-        obs = np.array([distance, pitch, self.goal], dtype=np.float32)
+        # reset estimated velocity
+        estimated_velocity = (self.distance[0] - self.distance[1]) / self.delta_simulation_time
+
+        distanceToGoal = abs(self.goal) - abs(self.distance[0])
+
+        obs = np.array([self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], pitch, self.goal, distanceToGoal, estimated_velocity], dtype=np.float32)
         return obs, {}
 
     def step(self, action):
@@ -56,19 +70,25 @@ class RealWorldEnv(Env):
         # Wait for the next time step to complete
         self.simulation_time += self.delta_simulation_time
 
+        # update distance memory
+        self.distance[4] = self.distance[3]
+        self.distance[3] = self.distance[2]
+        self.distance[2] = self.distance[1]
+        self.distance[1] = self.distance[0]
+
         # Read updated distance and pitch from the Arduino
-        distance, pitch = self.arduino.read_data()
-        if distance is None or pitch is None:
-            distance, pitch = 0, 0  # Default values if no data received
+        self.distance[0], pitch = self.arduino.read_data()
+        if self.distance[0] is None or pitch is None:
+            self.distance[0], pitch = 0, 0  # Default values if no data received
 
         # Calculate distance to goal and reward
-        distance_to_goal = abs(self.goal - distance)
+        distance_to_goal = abs(self.goal - self.distance[0])
         reward = 1 - (distance_to_goal / 2)  # Reward based on proximity to goal
 
         # Check termination conditions
-        terminated = self.simulation_time > self.max_simulation_time or abs(distance) > 1
+        terminated = self.simulation_time > self.max_simulation_time or abs(self.distance[0]) > 1
 
-        if abs(distance - self.goal) < 0.05:
+        if abs(self.distance[0] - self.goal) < 0.05:
             self.stable_count += 1
             if self.stable_count >= 50:
                 terminated = True
@@ -78,11 +98,16 @@ class RealWorldEnv(Env):
 
         # Log data for debugging
         self.data.loc[len(self.data)] = [
-            self.simulation_time, distance, pitch, self.goal, reward
+            self.simulation_time, self.distance[0], pitch, self.goal, reward
         ]
 
+        distanceToGoal = abs(self.goal) - abs(self.distance[0])
+
+        # reset estimated velocity
+        estimated_velocity = (self.distance[0] - self.distance[1]) / self.delta_simulation_time
+
         # Construct observation
-        obs = np.array([distance, pitch, self.goal], dtype=np.float32)
+        obs = np.array([self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], pitch, self.goal, distanceToGoal, estimated_velocity], dtype=np.float32)
         return obs, reward, terminated, False, {}
 
     def render(self):

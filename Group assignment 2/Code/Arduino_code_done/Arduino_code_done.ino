@@ -64,7 +64,7 @@ void loop() {
   //convert string from serial to int
   if (stringComplete) {
     angle = inputString.toInt();      // Convert string to integer
-    angle = constrain(angle, 60, 120);     // Constrain between 0 and 180
+    angle = constrain(angle, 50, 140);     // Constrain between 0 and 180
     // Move servo
     // Clear for next time
     inputString = "";
@@ -84,8 +84,8 @@ void loop() {
     // map and print distance and pitch to -1 to 1
     scdistance = map(distanceCm*100, 600, 1500, -1000, 1000);
     scpitch = map(pitch*100, -1000, 1100, -1000, 1000);
-    if (angle >= 120){angle = 120;}
-    if (angle <= 60){angle = 60;}
+    if (angle >= 140){angle = 140;}
+    if (angle <= 50){angle = 50;}
     myServo.write(angle);
     Serial.print("D");
     Serial.print(scdistance/1000, 2);
