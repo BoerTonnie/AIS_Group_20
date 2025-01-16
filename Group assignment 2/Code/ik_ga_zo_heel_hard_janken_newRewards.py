@@ -133,9 +133,9 @@ class RealWorldEnv(Env):
                 if self.stablecount > 49:
                     reward += 500
             if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
-                 reward -= 0.3
+                 reward -= 0.4
             if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
-                 reward -= 0.3
+                 reward -= 0.4
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
@@ -178,7 +178,7 @@ class RealWorldEnv(Env):
 
 # Main training loop
 if __name__ == "__main__":
-    loadModel = False
+    loadModel = True
 
     # Initialize environment
     env = RealWorldEnv()
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # Directory for TensorBoard logs
     tensorboard_log_dir = "tensorboard_logs/simulate_ppo" # copy command: "tensorboard --logdir=tensorboard_logs"
 
-    learningrate = 0.003
+    learningrate = 0.015
 
     if loadModel == False:
         # Initialize new RL model
@@ -200,7 +200,7 @@ if __name__ == "__main__":
         model = PPO.load("real_world_ppo_model", env=env, learningrate=learningrate)
 
     # Train the model
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=10000)
 
     # Save the model
     model.save("real_world_ppo_model")
