@@ -40,14 +40,14 @@ class RealWorldEnv(Env):
         # Data storage for debugging and analysis
         self.data = pd.DataFrame(columns=['Time', 'Distance', 'Pitch', 'Goal', 'Reward'])
 
-        self.goal = np.random.uniform(-1, 1)
+        self.goal = np.random.uniform(-0.7, 0.7)
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
         # Reset simulation variables
         self.simulation_time = 0
-        self.goal = np.random.uniform(-1, 1)
+        self.goal = np.random.uniform(-0.7, 0.7)
         self.stablecount = 0
 
         # Reset Arduino (if required)
@@ -130,6 +130,8 @@ class RealWorldEnv(Env):
                 reward += 0.5
                 if self.stablecount > 49:
                     reward += 500
+            if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
+                 reward -= 0.3
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
@@ -184,14 +186,14 @@ if __name__ == "__main__":
     # Directory for TensorBoard logs
     tensorboard_log_dir = "tensorboard_logs/simulate_ppo" # copy command: "tensorboard --logdir=tensorboard_logs"
 
-
+    learningrate = 0.003
 
     if loadModel == False:
         # Initialize new RL model
-        model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log=tensorboard_log_dir)
+        model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log=tensorboard_log_dir, learning_rate=learningrate)
     elif loadModel == True:
         # Load old model
-        model = PPO.load("real_world_ppo_model", env=env)
+        model = PPO.load("real_world_ppo_model", env=env, learningrate=learningrate)
 
     # Train the model
     model.learn(total_timesteps=100000)
