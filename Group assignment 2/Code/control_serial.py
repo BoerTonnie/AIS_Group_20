@@ -81,7 +81,7 @@ class ArduinoCommunicator:
             push_angle(-1.0)   ->  sends 24
         """
         # Scale angle
-        current_angle = self._scale(input_angle, -1, 1, 24, 130)
+        current_angle = self._scale(input_angle, -1, 1, 50, 140)
         # Constrain between 24 and 130
         angle_val = max(50, min(140, current_angle))
 

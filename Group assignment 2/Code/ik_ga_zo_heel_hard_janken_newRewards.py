@@ -10,7 +10,7 @@ from control_serial import ArduinoCommunicator
 
 
 class RealWorldEnv(Env):
-    def __init__(self, port='COM7', baudrate=115200, timeout=0.1):
+    def __init__(self, port='COM3', baudrate=115200, timeout=0.1):
         # Initialize Arduino communication
         self.arduino = ArduinoCommunicator(port, baudrate, timeout)
 
@@ -18,21 +18,21 @@ class RealWorldEnv(Env):
         self.action_space = Box(-1, 1, (1,), np.float32)
         # Define the observation space
         self.observation_space = Box(
-            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1, -44]),    # Lower bounds for distance[0:5], angle, goal, distance to goal
-            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 44]), # Upper bounds for distance[0:5], angle, goal, distance to goal
+            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -44]),    # Lower bounds for distance[0:5], angle, goal, distance to goal
+            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 44]), # Upper bounds for distance[0:5], angle, goal, distance to goal
             dtype=np.float32
         )
 
 
         self.simulation_time = 0
         self.delta_simulation_time = 0.05  # time step in seconds
-        self.max_simulation_time = 150  # max simulation time in seconds
+        self.max_simulation_time = 10  # max simulation time in seconds
         self.goal_threshold = 0.1
 
         self.maxDistance = 1
         self.minDistance = -1
 
-        self.distance = [0, 0, 0, 0, 0]
+        self.distance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
         self.steps_beyond_terminated = None
         self.stablecount = 0
@@ -54,7 +54,7 @@ class RealWorldEnv(Env):
 
         # Reset Arduino (if required)
         self.arduino.push_angle(0.05)  # Reset servo to neutral position
-        time.sleep(0.1)
+        time.sleep(0.3)
 
 
         # Initial observation from Arduino
@@ -65,6 +65,11 @@ class RealWorldEnv(Env):
         self.distance[2] = self.distance[0]
         self.distance[3] = self.distance[0]
         self.distance[4] = self.distance[0]
+        self.distance[5] = self.distance[0]
+        self.distance[6] = self.distance[0]
+        self.distance[7] = self.distance[0]
+        self.distance[8] = self.distance[0]
+        self.distance[9] = self.distance[0]
 
         # reset terminated condition
         self.steps_beyond_terminated = None
@@ -76,17 +81,22 @@ class RealWorldEnv(Env):
 
         print(self.goal)
 
-        obs = np.array([self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], pitch, self.goal, distanceToGoal, estimated_velocity], dtype=np.float32)
+        obs = np.array([self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.distance[5], self.distance[6], self.distance[7], self.distance[8], self.distance[9], pitch, self.goal, distanceToGoal, estimated_velocity], dtype=np.float32)
         return obs, {}
 
     def step(self, action):
         # Send the action (servo angle) to the Arduino
         self.arduino.push_angle(action[0])
-        time.sleep(0.04)
+        time.sleep(0.02)
         # Wait for the next time step to complete
         self.simulation_time += self.delta_simulation_time
 
         # update distance memory
+        self.distance[9] = self.distance[8]
+        self.distance[8] = self.distance[7]
+        self.distance[7] = self.distance[6]
+        self.distance[6] = self.distance[5]
+        self.distance[5] = self.distance[4]
         self.distance[4] = self.distance[3]
         self.distance[3] = self.distance[2]
         self.distance[2] = self.distance[1]
@@ -100,7 +110,7 @@ class RealWorldEnv(Env):
         distanceToGoal = abs(self.goal) - abs(self.distance[0])
 
         # Check termination conditions
-        terminated = self.simulation_time > self.max_simulation_time or abs(self.distance[0]) > 1
+        terminated = self.simulation_time > self.max_simulation_time
 
         if abs(self.distance[0] - self.goal) < 0.05:
             self.stable_count += 1
@@ -126,16 +136,16 @@ class RealWorldEnv(Env):
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = float(0)
-            reward -= 0.01*abs(action[0]) # punih based on the angle 
+            reward -= 0.4*abs(action[0]) # punih based on the angle 
             reward += float(1*(1 - (abs(distanceToGoal) / self.maxDistance))) # reward proportional to the distance to goal
             if self.distance[0] < self.goal + self.goal_threshold and self.distance[0] > self.goal - self.goal_threshold:
                 reward += 0.5
+                if pitch > -0.1 and pitch < 0.20:
+                     reward += 0.5
                 if self.stablecount > 49:
                     reward += 500
             if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
-                 reward -= 0.4
-            if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
-                 reward -= 0.4
+                 reward -= 2
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
@@ -163,7 +173,7 @@ class RealWorldEnv(Env):
         estimated_velocity = (self.distance[0] - self.distance[1]) / self.delta_simulation_time
 
         # Construct observation
-        obs = np.array([self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], pitch, self.goal, distanceToGoal, estimated_velocity], dtype=np.float32)
+        obs = np.array([self.distance[0], self.distance[1], self.distance[2], self.distance[3], self.distance[4], self.distance[5], self.distance[6], self.distance[7], self.distance[8], self.distance[9], pitch, self.goal, distanceToGoal, estimated_velocity], dtype=np.float32)
         return obs, reward, terminated, False, {}
 
     def render(self):
@@ -190,7 +200,7 @@ if __name__ == "__main__":
     # Directory for TensorBoard logs
     tensorboard_log_dir = "tensorboard_logs/simulate_ppo" # copy command: "tensorboard --logdir=tensorboard_logs"
 
-    learningrate = 0.015
+    learningrate = 0.005
 
     if loadModel == False:
         # Initialize new RL model
@@ -200,7 +210,7 @@ if __name__ == "__main__":
         model = PPO.load("real_world_ppo_model", env=env, learningrate=learningrate)
 
     # Train the model
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=20000)
 
     # Save the model
     model.save("real_world_ppo_model")

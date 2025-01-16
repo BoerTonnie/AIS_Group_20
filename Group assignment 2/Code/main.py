@@ -2,7 +2,7 @@ import time
 from control_serial import ArduinoCommunicator
 
 def main():
-    arduino = ArduinoCommunicator(port='COM7', baudrate=115200)
+    arduino = ArduinoCommunicator(port='COM3', baudrate=115200)
     try:
         while True:
             dist, pitch = arduino.read_data()
