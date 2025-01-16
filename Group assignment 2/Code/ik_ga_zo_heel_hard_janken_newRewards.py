@@ -172,6 +172,8 @@ class RealWorldEnv(Env):
 
 # Main training loop
 if __name__ == "__main__":
+    loadModel = False
+
     # Initialize environment
     env = RealWorldEnv()
 
@@ -184,8 +186,12 @@ if __name__ == "__main__":
 
 
 
-    # Initialize RL model
-    model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log=tensorboard_log_dir)
+    if loadModel == False:
+        # Initialize new RL model
+        model = PPO("MlpPolicy", vec_env, verbose=1, tensorboard_log=tensorboard_log_dir)
+    elif loadModel == True:
+        # Load old model
+        model = PPO.load("real_world_ppo_model", env=env)
 
     # Train the model
     model.learn(total_timesteps=100000)
