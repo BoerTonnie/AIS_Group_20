@@ -148,6 +148,7 @@ class RealWorldEnv(Env):
 # Main training loop
 if __name__ == "__main__":
     loadModel = True
+    learningrate = 0.003
 
     # Initialize the custom environment
     env = RealWorldEnv()
@@ -159,7 +160,6 @@ if __name__ == "__main__":
     # Define TensorBoard log directory
     tensorboard_log_dir = "tensorboard_logs/simulate_ppo"
 
-    learningrate = 0.01
 
     if not loadModel:
         # Initialize a new PPO model
@@ -169,7 +169,7 @@ if __name__ == "__main__":
         model = PPO.load("real_world_ppo_model", env=env, learningrate=learningrate)
 
     # Train the model with the specified number of timesteps
-    model.learn(total_timesteps=20000)
+    model.learn(total_timesteps=100000)
 
     # Save the trained model
     model.save("real_world_ppo_model2")
@@ -177,3 +177,5 @@ if __name__ == "__main__":
     # Test the model
     obs, _ = env.reset()
 
+# paste the following command into a seperate terminal an go to the website displayed in the terminal
+# tensorboard --logdir=tensorboard_logs/simulate_ppo
