@@ -65,8 +65,6 @@ void loop() {
   if (stringComplete) {
     angle = inputString.toInt();      // Convert string to integer
     angle = constrain(angle, 50, 140);     // Constrain between 0 and 180
-    // Move servo
-    // Clear for next time
     inputString = "";
     stringComplete = false;
   }

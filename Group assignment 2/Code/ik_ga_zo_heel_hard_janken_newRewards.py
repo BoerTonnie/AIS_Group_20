@@ -112,15 +112,6 @@ class RealWorldEnv(Env):
         # Check termination conditions
         terminated = self.simulation_time > self.max_simulation_time
 
-        if abs(self.distance[0] - self.goal) < 0.05:
-            self.stable_count += 1
-            if self.stable_count >= 50:
-                terminated = True
-                reward += 10  # Bonus for achieving stability
-        else:
-            self.stable_count = 0
-        
-
 
 
 # ----------- reward ------------------
@@ -142,10 +133,10 @@ class RealWorldEnv(Env):
                 reward += 0.5
                 if pitch > -0.1 and pitch < 0.20:
                      reward += 0.5
-                reward += self.stable_count
+                reward += self.stablecount
                 if self.stablecount > 49:
                     reward += 500
-            if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
+            if self.distance[0] > 0.90 or self.distance[0] < -0.90: 
                  reward -= 5
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
@@ -201,7 +192,7 @@ if __name__ == "__main__":
     # Directory for TensorBoard logs
     tensorboard_log_dir = "tensorboard_logs/simulate_ppo" # copy command: "tensorboard --logdir=tensorboard_logs"
 
-    learningrate = 0.005
+    learningrate = 0.01
 
     if loadModel == False:
         # Initialize new RL model
