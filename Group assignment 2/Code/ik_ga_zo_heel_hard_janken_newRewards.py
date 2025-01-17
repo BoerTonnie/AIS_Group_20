@@ -146,7 +146,7 @@ class RealWorldEnv(Env):
                 if self.stablecount > 49:
                     reward += 500
             if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
-                 reward -= 1
+                 reward -= 5
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
