@@ -27,7 +27,7 @@ class RealWorldEnv(Env):
         self.simulation_time = 0
         self.delta_simulation_time = 0.05  # time step in seconds
         self.max_simulation_time = 10  # max simulation time in seconds
-        self.goal_threshold = 0.1
+        self.goal_threshold = 0.2
 
         self.maxDistance = 1
         self.minDistance = -1
@@ -136,16 +136,17 @@ class RealWorldEnv(Env):
         # Question to Hussam: Should we also put the goal somewhere else so the model knows where to aim itself to?
         if not terminated:
             reward = float(0)
-            reward -= 0.4*abs(action[0]) # punih based on the angle 
+            reward -= 0.1*abs(action[0]) # punih based on the angle 
             reward += float(1*(1 - (abs(distanceToGoal) / self.maxDistance))) # reward proportional to the distance to goal
             if self.distance[0] < self.goal + self.goal_threshold and self.distance[0] > self.goal - self.goal_threshold:
                 reward += 0.5
                 if pitch > -0.1 and pitch < 0.20:
                      reward += 0.5
+                reward += self.stable_count
                 if self.stablecount > 49:
                     reward += 500
             if self.distance[0] > 0.95 or self.distance[0] < -0.95: 
-                 reward -= 2
+                 reward -= 1
         elif self.steps_beyond_terminated is None:
             self.steps_beyond_terminated = 0
             reward = 0.5
