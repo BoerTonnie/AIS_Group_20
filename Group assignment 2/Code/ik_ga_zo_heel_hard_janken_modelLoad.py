@@ -16,10 +16,11 @@ class RealWorldEnv(Env):
 
         # Gym environment setup
         self.action_space = Box(-1, 1, (1,), np.float32)
-        # Define the observation space
+        
+        # Define the observation space: distances, angles, and velocity data
         self.observation_space = Box(
-            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1, -44]),    # Lower bounds for distance[0:5], angle, goal, distance to goal
-            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 44]), # Upper bounds for distance[0:5], angle, goal, distance to goal
+            low=np.array([-1] * 13 + [-44]),    # Lower bounds for distances 0-9, angle, goal, distance to goal, and velocity
+            high=np.array([1] * 13 + [44]),     # Upper bounds for distances, angle, goal, distance to goaland velocity
             dtype=np.float32
         )
 
