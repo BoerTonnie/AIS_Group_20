@@ -16,7 +16,7 @@ class RealWorldEnv(Env):
 
         # Gym environment setup
         self.action_space = Box(-1, 1, (1,), np.float32)
-        
+
         # Define the observation space: distances, angles, and velocity data
         self.observation_space = Box(
             low=np.array([-1] * 13 + [-44]),    # Lower bounds for distances 0-9, angle, goal, distance to goal, and velocity
@@ -180,12 +180,12 @@ if __name__ == "__main__":
 
     # # Wrap the environment for Stable-Baselines3
     # env = Monitor(env)
-    # vec_env = DummyVecEnv([lambda: env])
+    vec_env = DummyVecEnv([lambda: env])
 
     # Load old model
     model = PPO.load("real_world_ppo_modelD", env=env)
 
-    obs = env.reset()
+    obs = vec_env.reset()
 
     # Execute the model without further training
     for _ in range(1000):  # Run for 1000 steps or adjust as needed
