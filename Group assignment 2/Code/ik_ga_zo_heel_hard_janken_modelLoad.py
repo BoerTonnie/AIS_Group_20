@@ -181,11 +181,8 @@ if __name__ == "__main__":
     # env = Monitor(env)
     # vec_env = DummyVecEnv([lambda: env])
 
-    # Directory for TensorBoard logs
-    tensorboard_log_dir = "tensorboard_logs/simulate_ppo" # copy command: "tensorboard --logdir=tensorboard_logs"
-
     # Load old model
-    model = PPO.load("real_world_ppo_model", env=env)
+    model = PPO.load("real_world_ppo_modelD", env=env)
 
     obs = env.reset()
 
