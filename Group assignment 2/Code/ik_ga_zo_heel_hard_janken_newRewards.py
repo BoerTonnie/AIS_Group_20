@@ -10,7 +10,7 @@ from control_serial import ArduinoCommunicator
 
 
 class RealWorldEnv(Env):
-    def __init__(self, port='COM3', baudrate=115200, timeout=0.1):
+    def __init__(self, port='COM7', baudrate=115200, timeout=0.1):
         # Initialize Arduino communication
         self.arduino = ArduinoCommunicator(port, baudrate, timeout)
 
@@ -180,7 +180,7 @@ class RealWorldEnv(Env):
 
 # Main training loop
 if __name__ == "__main__":
-    loadModel = True
+    loadModel = False
 
     # Initialize environment
     env = RealWorldEnv()

@@ -114,8 +114,12 @@ class RealWorldEnv(Env):
                     reward += 0.5  # Additional bonus for stability
                 reward += self.stablecount
                 if self.stablecount > 150:
-                    terminated = True #terminates if stability reached
-                    reward += 500  # Large reward for sustained stability
+                    #terminated = True #terminates if stability reached
+                    reward += 1000  # Large reward for sustained stability
+                    #self.goal = np.random.uniform(-0.7, 0.7)  # Reset goal position
+                    #self.stablecount = 0
+                    print("Goal was reached")
+                    print(self.goal)
             if abs(self.distance[0]) > 0.95:  # Penalize edge positions
                 reward -= 5
         elif self.steps_beyond_terminated is None: # if terminated is not init, init it and give small reward
@@ -150,7 +154,7 @@ class RealWorldEnv(Env):
 # Main training loop
 if __name__ == "__main__":
     loadModel = True
-    learningrate = 0.001
+    learningrate = 0.0005
 
     # Initialize the custom environment
     env = RealWorldEnv()
@@ -171,7 +175,7 @@ if __name__ == "__main__":
         model = PPO.load("real_world_ppo_modelD_02", env=env, learningrate=learningrate)
 
     # Train the model with the specified number of timesteps
-    model.learn(total_timesteps=50000)
+    model.learn(total_timesteps=10000)
 
     # Save the trained model
     model.save("real_world_ppo_modelD_03")
